@@ -1,5 +1,5 @@
 use crate::{Daemon, Update, common, event as update, server, state};
-use std::{assert_matches::assert_matches, path::PathBuf};
+use std::path::PathBuf;
 use syre_core as core;
 use syre_fs_daemon::{EventKind, event};
 use syre_local::{self as local, TryReducible};
@@ -34,7 +34,7 @@ impl Daemon {
 
 impl Daemon {
     fn handle_fs_event_asset_file_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AssetFile(event::ResourceEvent::Created)
         );
@@ -133,7 +133,7 @@ impl Daemon {
     }
 
     fn handle_fs_event_asset_file_removed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AssetFile(event::ResourceEvent::Removed)
         );
@@ -241,7 +241,7 @@ impl Daemon {
     }
 
     fn handle_fs_event_asset_file_renamed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AssetFile(event::ResourceEvent::Renamed)
         );

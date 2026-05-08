@@ -5,7 +5,6 @@ use crate::{
     state,
 };
 use std::{
-    assert_matches::assert_matches,
     io,
     path::{Path, PathBuf},
 };
@@ -48,7 +47,7 @@ impl Daemon {
 
         use local::{loader::container, project};
 
-        assert_matches!(event.kind(), EventKind::Graph(event::Graph::Created));
+        std::assert_matches!(event.kind(), EventKind::Graph(event::Graph::Created));
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
@@ -188,7 +187,7 @@ impl Daemon {
 
     #[cfg(not(target_os = "windows"))]
     fn handle_fs_event_graph_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(event.kind(), EventKind::Graph(event::Graph::Created));
+        std::assert_matches!(event.kind(), EventKind::Graph(event::Graph::Created));
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
         };
@@ -289,7 +288,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::GraphResource(event::GraphResource::Removed)
         );

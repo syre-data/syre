@@ -38,7 +38,7 @@ pub fn NavBar() -> impl IntoView {
                     cursor-pointer"
                     title="Layers view"
                 >
-                    <Icon icon=icondata::TbListTree />
+                    <Icon icon=icondata::TbListTreeOutline />
                 </button>
                 <button
                     on:mousedown=move |e| mousedown(e, Widget::Search)

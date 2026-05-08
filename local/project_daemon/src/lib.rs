@@ -1,5 +1,4 @@
 #![feature(io_error_more)]
-#![feature(assert_matches)]
 //! # Syre Project Daemon
 //! Implements a local project daemon daemon for Syre.
 pub mod common;

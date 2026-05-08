@@ -1,7 +1,6 @@
 use super::*;
 use crate::{graph, project};
 use has_id::HasId;
-use std::assert_matches::assert_matches;
 
 #[test_log::test]
 pub fn runner_should_work() {
@@ -13,7 +12,7 @@ pub fn runner_should_work() {
     let handle = runner.run(project, tree);
     let status = handle.join().unwrap();
     status.into_iter().for_each(|status| {
-        assert_matches!(status.status, AnalysisStatus::Complete(_));
+        std::assert_matches!(status.status, AnalysisStatus::Complete(_));
     });
 }
 

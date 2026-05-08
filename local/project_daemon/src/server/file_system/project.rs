@@ -3,7 +3,7 @@ use crate::{
     event::{self as update, Update},
     server, state,
 };
-use std::{assert_matches::assert_matches, io, path};
+use std::{io, path};
 use syre_fs_daemon::{EventKind, event};
 use syre_local::{
     self as local, TryReducible,
@@ -38,7 +38,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::FolderRemoved)
         );
@@ -99,7 +99,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::ConfigDir(
                 event::StaticResourceEvent::Created
@@ -116,15 +116,15 @@ impl Daemon {
             panic!("invalid state");
         };
 
-        assert_matches!(
+        std::assert_matches!(
             project_state.properties(),
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
-        assert_matches!(
+        std::assert_matches!(
             project_state.settings(),
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
-        assert_matches!(
+        std::assert_matches!(
             project_state.analyses(),
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
@@ -257,7 +257,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::ConfigDir(
                 event::StaticResourceEvent::Removed
@@ -357,7 +357,7 @@ impl Daemon {
     ) -> Vec<Update> {
         use syre_local::types::AnalysisKind;
 
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::AnalysisDir(event::ResourceEvent::Created))
         );
@@ -709,7 +709,7 @@ impl Daemon {
             .unwrap();
 
         if self.config.handle_fs_resource_changes() {
-            assert_matches!(
+            std::assert_matches!(
                 to_path.components().next().unwrap(),
                 path::Component::RootDir
             );
@@ -767,7 +767,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::DataDir(event::ResourceEvent::Modified(
                 event::ModifiedKind::Other
@@ -861,7 +861,7 @@ impl Daemon {
             panic!("invalid state");
         };
 
-        assert_matches!(
+        std::assert_matches!(
             project.properties(),
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
@@ -978,7 +978,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::Properties(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
@@ -992,7 +992,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Project(event::Project::Properties(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other)
@@ -1132,7 +1132,7 @@ impl Daemon {
             panic!("invalid state");
         };
 
-        assert_matches!(
+        std::assert_matches!(
             project.settings(),
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );
@@ -1370,7 +1370,7 @@ impl Daemon {
             panic!("invalid state");
         };
 
-        assert_matches!(
+        std::assert_matches!(
             project.analyses(),
             state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
         );

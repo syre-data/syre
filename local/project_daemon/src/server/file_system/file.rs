@@ -1,5 +1,4 @@
 use crate::{Daemon, event::Update};
-use std::assert_matches::assert_matches;
 use syre_fs_daemon::{EventKind, event};
 
 impl Daemon {
@@ -21,7 +20,7 @@ impl Daemon {
 
 impl Daemon {
     fn handle_fs_event_file_created(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Created));
+        std::assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Created));
 
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");
@@ -32,7 +31,7 @@ impl Daemon {
     }
 
     fn handle_fs_event_file_renamed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Renamed));
+        std::assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Renamed));
 
         let [from, to] = &event.paths()[..] else {
             panic!("invalid paths");
@@ -45,7 +44,7 @@ impl Daemon {
     }
 
     fn handle_fs_event_file_removed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Removed));
+        std::assert_matches!(event.kind(), EventKind::File(event::ResourceEvent::Removed));
 
         let [path] = &event.paths()[..] else {
             panic!("invalid paths");

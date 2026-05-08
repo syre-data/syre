@@ -58,7 +58,7 @@ mod server {
         let location = panic_info.location().map(|location| location.to_string());
         #[cfg(feature = "tracing")]
         tracing::error!("local/project_daemon panicked at {location:?}: {payload:?}");
-        // TODO: If `tracing` is nor enabled?
+        // TODO: If `tracing` is not enabled?
     }
 
     #[cfg(feature = "tracing")]

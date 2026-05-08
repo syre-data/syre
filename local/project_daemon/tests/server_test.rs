@@ -1,7 +1,6 @@
-#![feature(assert_matches)]
 use crossbeam::channel::Sender;
 use rand::Rng;
-use std::{assert_matches::assert_matches, fs, io, thread, time::Duration};
+use std::{fs, io, thread, time::Duration};
 use syre_core::{
     project::{Asset, Script},
     types::ResourceId,
@@ -48,19 +47,19 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let user_manifest_state = db.state().user_manifest().unwrap();
-    assert_matches!(user_manifest_state, Err(IoSerde::Serde(_)));
+    std::assert_matches!(user_manifest_state, Err(IoSerde::Serde(_)));
 
     let project_manifest_state = db.state().project_manifest().unwrap();
-    assert_matches!(project_manifest_state, Err(IoSerde::Serde(_)));
+    std::assert_matches!(project_manifest_state, Err(IoSerde::Serde(_)));
 
     let local_config_state = db.state().local_config().unwrap();
-    assert_matches!(local_config_state, Err(IoSerde::Serde(_)));
+    std::assert_matches!(local_config_state, Err(IoSerde::Serde(_)));
 
     // TODO: Handle user manifest
     // fs::write(user_manifest.path(), "{}").unwrap();
     // let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     // assert_eq!(update.len(), 1);
-    // assert_matches!(
+    // std::assert_matches!(
     //     update[0].kind(),
     //     event::UpdateKind::App(event::App::UserManifest(event::UserManifest::Repaired))
     // );
@@ -86,11 +85,11 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let project_manifest_state = db.state().project_manifest().unwrap();
-    assert_matches!(project_manifest_state, Ok(paths) if paths.is_empty());
+    std::assert_matches!(project_manifest_state, Ok(paths) if paths.is_empty());
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         update[0].kind(),
         event::UpdateKind::App(event::App::ProjectManifest(
             event::ProjectManifest::Repaired
@@ -104,7 +103,7 @@ fn test_server_state_and_updates_basics() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let project_manifest_state = db.state().project_manifest().unwrap();
-    assert_matches!(project_manifest_state, Ok(paths) if *paths == *project_manifest);
+    std::assert_matches!(project_manifest_state, Ok(paths) if *paths == *project_manifest);
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     assert_eq!(projects_state[0].path(), project.path());
@@ -112,17 +111,17 @@ fn test_server_state_and_updates_basics() {
     let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    assert_matches!(
+    std::assert_matches!(
         project_state.properties(),
         state::DataResource::Err(IoSerde::Io(err))
         if err == io::ErrorKind::NotFound
     );
-    assert_matches!(
+    std::assert_matches!(
         project_state.settings(),
         state::DataResource::Err(IoSerde::Io(err))
         if err == io::ErrorKind::NotFound
     );
-    assert_matches!(
+    std::assert_matches!(
         project_state.analyses(),
         state::DataResource::Err(IoSerde::Io(err))
         if err == io::ErrorKind::NotFound
@@ -130,7 +129,7 @@ fn test_server_state_and_updates_basics() {
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         update[0].kind(),
         event::UpdateKind::App(event::App::ProjectManifest(
                 event::ProjectManifest::Added(paths)
@@ -149,7 +148,7 @@ fn test_server_state_and_updates_basics() {
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
-    assert_matches!(
+    std::assert_matches!(
         project_state.analyses(),
         state::DataResource::Err(IoSerde::Io(err))
         if err == io::ErrorKind::NotFound
@@ -233,7 +232,7 @@ fn test_server_state_and_updates_basics() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    assert_matches!(
+    std::assert_matches!(
         update,
         event::Project::Properties(event::DataResource::Modified(update))
         if update.description == project.description
@@ -248,7 +247,7 @@ fn test_server_state_and_updates_basics() {
     let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    assert_matches!(project_state.properties(), Err(IoSerde::Serde(_)));
+    std::assert_matches!(project_state.properties(), Err(IoSerde::Serde(_)));
     assert!(project_state.settings().is_ok());
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
@@ -264,7 +263,7 @@ fn test_server_state_and_updates_basics() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    assert_matches!(
+    std::assert_matches!(
         update,
         event::Project::Properties(event::DataResource::Corrupted(err))
         if matches!(err, IoSerde::Serde(_))
@@ -283,7 +282,7 @@ fn test_server_state_and_updates_basics() {
     let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    assert_matches!(project_state.settings(), Err(IoSerde::Serde(_)));
+    std::assert_matches!(project_state.settings(), Err(IoSerde::Serde(_)));
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
@@ -297,7 +296,7 @@ fn test_server_state_and_updates_basics() {
     };
 
     assert_eq!(path, project.base_path());
-    assert_matches!(
+    std::assert_matches!(
         update,
         event::Project::Settings(event::DataResource::Corrupted(err))
         if matches!(err, IoSerde::Serde(_))
@@ -314,7 +313,7 @@ fn test_server_state_and_updates_basics() {
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
-    assert_matches!(
+    std::assert_matches!(
         project_state.analyses(),
         state::DataResource::Err(IoSerde::Io(err))
         if err == io::ErrorKind::NotFound
@@ -411,7 +410,7 @@ fn test_server_state_and_updates_basics() {
 
     assert_eq!(project_id.as_ref().unwrap(), project.rid());
     assert_eq!(path, project.base_path());
-    assert_matches!(
+    std::assert_matches!(
         update,
         event::Project::Analyses(event::DataResource::Created(_))
     );
@@ -425,7 +424,7 @@ fn test_server_state_and_updates_basics() {
     let state::FolderResource::Present(project_state) = project_state else {
         panic!();
     };
-    assert_matches!(project_state.analyses(), Err(IoSerde::Serde(_)));
+    std::assert_matches!(project_state.analyses(), Err(IoSerde::Serde(_)));
 
     let update = update_rx.recv_timeout(RECV_TIMEOUT).unwrap();
     assert_eq!(update.len(), 1);
@@ -439,7 +438,7 @@ fn test_server_state_and_updates_basics() {
     };
 
     assert_eq!(path, project.base_path());
-    assert_matches!(
+    std::assert_matches!(
         update,
         event::Project::Analyses(event::DataResource::Corrupted(err))
         if matches!(err, IoSerde::Serde(_))
@@ -484,7 +483,7 @@ fn test_server_state_and_updates_basics() {
         panic!();
     };
     assert_eq!(analyses_state.len(), 1);
-    assert_matches!(&*analyses_state[0], AnalysisKind::Script(s) if *s == script);
+    std::assert_matches!(&*analyses_state[0], AnalysisKind::Script(s) if *s == script);
     assert!(!analyses_state[0].is_present());
 
     project.set_analysis_root("analysis");
@@ -616,15 +615,15 @@ fn test_server_state_and_updates_basics() {
     };
     assert_eq!(graph.nodes.len(), 1);
     assert_eq!(graph.nodes[0].name(), &project.data_root);
-    assert_matches!(
+    std::assert_matches!(
         graph.nodes[0].properties(),
         Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
-    assert_matches!(
+    std::assert_matches!(
         graph.nodes[0].settings(),
         Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
-    assert_matches!(
+    std::assert_matches!(
         graph.nodes[0].assets(),
         Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
@@ -645,15 +644,15 @@ fn test_server_state_and_updates_basics() {
         .unwrap()
         .unwrap();
 
-    assert_matches!(
+    std::assert_matches!(
         container.properties(),
         state::DataResource::Err(IoSerde::Serde(_))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.settings(),
         state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.assets(),
         state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
@@ -682,7 +681,7 @@ fn test_server_state_and_updates_basics() {
         path.components().next().unwrap(),
         std::path::Component::RootDir
     );
-    assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
+    std::assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 
     let settings_path = syre_local::common::container_settings_file_of(project.data_root_path());
     fs::File::create(&settings_path).unwrap();
@@ -695,15 +694,15 @@ fn test_server_state_and_updates_basics() {
         .unwrap()
         .unwrap();
 
-    assert_matches!(
+    std::assert_matches!(
         container.properties(),
         state::DataResource::Err(IoSerde::Serde(_))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.settings(),
         state::DataResource::Err(IoSerde::Serde(_))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.assets(),
         state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
@@ -732,7 +731,7 @@ fn test_server_state_and_updates_basics() {
         path.components().next().unwrap(),
         std::path::Component::RootDir
     );
-    assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
+    std::assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 
     let assets_path = syre_local::common::assets_file_of(project.data_root_path());
     fs::File::create(&assets_path).unwrap();
@@ -745,15 +744,15 @@ fn test_server_state_and_updates_basics() {
         .unwrap()
         .unwrap();
 
-    assert_matches!(
+    std::assert_matches!(
         container.properties(),
         state::DataResource::Err(IoSerde::Serde(_))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.settings(),
         state::DataResource::Err(IoSerde::Serde(_))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.assets(),
         state::DataResource::Err(IoSerde::Serde(_))
     );
@@ -782,7 +781,7 @@ fn test_server_state_and_updates_basics() {
         path.components().next().unwrap(),
         std::path::Component::RootDir
     );
-    assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
+    std::assert_matches!(update, event::DataResource::Created(Err(IoSerde::Serde(_))));
 
     fs::remove_dir_all(syre_local::common::app_dir_of(project.data_root_path())).unwrap();
     thread::sleep(ACTION_SLEEP_TIME);
@@ -794,15 +793,15 @@ fn test_server_state_and_updates_basics() {
         .unwrap()
         .unwrap();
 
-    assert_matches!(
+    std::assert_matches!(
         container.properties(),
         state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.settings(),
         state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
-    assert_matches!(
+    std::assert_matches!(
         container.assets(),
         state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
     );
@@ -1201,7 +1200,7 @@ fn test_server_state_and_updates_graph() {
     thread::sleep(ACTION_SLEEP_TIME);
 
     let project_manifest_state = db.state().project_manifest().unwrap();
-    assert_matches!(project_manifest_state, Ok(paths) if *paths == *project_manifest);
+    std::assert_matches!(project_manifest_state, Ok(paths) if *paths == *project_manifest);
     let projects_state = db.state().projects().unwrap();
     assert_eq!(projects_state.len(), 1);
     assert_eq!(projects_state[0].path(), project.path());
@@ -1220,7 +1219,7 @@ fn test_server_state_and_updates_graph() {
     };
     assert!(project_state.properties().is_ok());
     assert!(project_state.settings().is_ok());
-    assert_matches!(
+    std::assert_matches!(
         project_state.analyses(),
         state::DataResource::Err(IoSerde::Io(err))
         if err == io::ErrorKind::NotFound

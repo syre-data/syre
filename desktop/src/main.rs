@@ -9,7 +9,7 @@ fn main() {
 
 #[cfg(all(feature = "tracing", debug_assertions))]
 mod tracing {
-    use tracing_subscriber::{filter, prelude::*};
+    use tracing_subscriber::{filter, fmt::time, prelude::*};
 
     pub fn enable() {
         let target_filter = filter::Targets::new()
@@ -17,7 +17,7 @@ mod tracing {
             .with_target("leptos", tracing::Level::TRACE);
         let fmt_layer = tracing_subscriber::fmt::layer()
             .with_ansi(false) // Only partially supported across browsers
-            .with_timer(UtcTime::rfc_3339())
+            .with_timer(time::UtcTime::rfc_3339())
             .pretty()
             .with_writer(tracing_web::MakeWebConsoleWriter::new()); // write events to the console
 

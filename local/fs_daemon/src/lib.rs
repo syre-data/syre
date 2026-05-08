@@ -1,4 +1,3 @@
-#![feature(assert_matches)]
 //! File system event handler.
 mod command;
 pub mod error;

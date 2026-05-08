@@ -3,7 +3,7 @@ use crate::{
     event::{self as update, Update},
     server::state,
 };
-use std::{assert_matches::assert_matches, io};
+use std::{io};
 use syre_fs_daemon::{EventKind, event};
 use syre_local::TryReducible;
 
@@ -57,7 +57,7 @@ impl Daemon {
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
                 event::StaticResourceEvent::Created
@@ -119,7 +119,7 @@ impl Daemon {
 
         // NB: Can not assert that user manifest state must at least be present
         // because file system watch may emit multiple remove events.
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
                 event::StaticResourceEvent::Removed
@@ -149,7 +149,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
@@ -163,7 +163,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::ProjectManifest(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
@@ -379,7 +379,7 @@ impl Daemon {
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::UserManifest(
                 event::StaticResourceEvent::Created
@@ -419,7 +419,7 @@ impl Daemon {
 
         // NB: Can not assert that user manifest state must at least be present
         // because file system watch may emit multiple remove events.
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::UserManifest(
                 event::StaticResourceEvent::Removed
@@ -440,7 +440,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::UserManifest(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
@@ -456,7 +456,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::UserManifest(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
@@ -586,7 +586,7 @@ impl Daemon {
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
 
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::LocalConfig(
                 event::StaticResourceEvent::Created
@@ -625,7 +625,7 @@ impl Daemon {
 
         // NB: Can not assert that user manifest state must at least be present
         // because file system watch may emit multiple remove events.
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::LocalConfig(
                 event::StaticResourceEvent::Removed
@@ -648,7 +648,7 @@ impl Daemon {
     ) -> Vec<Update> {
         use state::config::{Action as ConfigAction, action::DataResource as DataAction};
         #[cfg(target_os = "windows")]
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::LocalConfig(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
@@ -656,7 +656,7 @@ impl Daemon {
         );
 
         #[cfg(not(target_os = "windows"))]
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Config(event::Config::LocalConfig(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),

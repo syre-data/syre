@@ -3,7 +3,7 @@ use crate::{
     event::{self as update, Update},
     server, state,
 };
-use std::{assert_matches::assert_matches, io, path::PathBuf};
+use std::{io, path::PathBuf};
 use syre_fs_daemon::{EventKind, event};
 use syre_local::{TryReducible, error::IoSerde, loader};
 
@@ -29,7 +29,7 @@ impl Daemon {
 
 impl Daemon {
     fn handle_fs_event_container_renamed(&mut self, event: syre_fs_daemon::Event) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Renamed)
         );
@@ -134,7 +134,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::ConfigDir(
                 event::StaticResourceEvent::Created
@@ -190,15 +190,15 @@ impl Daemon {
                 tracing::warn!("container assets already exists");
             }
         } else {
-            assert_matches!(
+            std::assert_matches!(
                 container_state.properties(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             );
-            assert_matches!(
+            std::assert_matches!(
                 container_state.settings(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             );
-            assert_matches!(
+            std::assert_matches!(
                 container_state.assets(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             );
@@ -326,7 +326,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::ConfigDir(
                 event::StaticResourceEvent::Removed
@@ -441,7 +441,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Properties(
                 event::StaticResourceEvent::Created
@@ -482,7 +482,7 @@ impl Daemon {
                 tracing::warn!("container properties already exists");
             }
         } else {
-            assert_matches!(
+            std::assert_matches!(
                 container_state.properties(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             );
@@ -525,7 +525,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Properties(
                 event::StaticResourceEvent::Removed
@@ -612,7 +612,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Properties(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
@@ -626,7 +626,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Properties(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
@@ -789,7 +789,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Settings(
                 event::StaticResourceEvent::Created
@@ -829,7 +829,7 @@ impl Daemon {
                 tracing::warn!("container settings already exists");
             }
         } else {
-            assert_matches!(
+            std::assert_matches!(
                 container_state.settings(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             );
@@ -870,7 +870,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Settings(
                 event::StaticResourceEvent::Removed
@@ -957,7 +957,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Settings(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
@@ -971,7 +971,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Settings(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other)
@@ -1122,7 +1122,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Assets(
                 event::StaticResourceEvent::Created
@@ -1162,7 +1162,7 @@ impl Daemon {
                 tracing::warn!("asset created event occurred late");
             }
         } else {
-            assert_matches!(
+            std::assert_matches!(
                 container_state.assets(),
                 state::DataResource::Err(IoSerde::Io(io::ErrorKind::NotFound))
             );
@@ -1234,7 +1234,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Assets(
                 event::StaticResourceEvent::Removed
@@ -1319,7 +1319,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Assets(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
@@ -1333,7 +1333,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Assets(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other),
@@ -1527,7 +1527,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Flags(event::StaticResourceEvent::Created))
         );
@@ -1621,7 +1621,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Flags(event::StaticResourceEvent::Removed))
         );
@@ -1704,7 +1704,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Flags(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Data),
@@ -1718,7 +1718,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::Container(event::Container::Flags(
                 event::StaticResourceEvent::Modified(event::ModifiedKind::Other),

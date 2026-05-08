@@ -1,5 +1,5 @@
 use rayon::prelude::*;
-use std::{assert_matches::assert_matches, fs, io, path::PathBuf};
+use std::{fs, io, path::PathBuf};
 use syre_core::{project::ScriptLang, types::ResourceId};
 use syre_desktop_lib::{self as lib};
 use syre_local as local;
@@ -16,7 +16,7 @@ pub async fn project_add_analyses(
 
     resources.iter_mut().for_each(|resource| {
         assert!(resource.path.is_absolute());
-        assert_matches!(
+        std::assert_matches!(
             resource.parent.components().next().unwrap(),
             std::path::Component::RootDir
         );

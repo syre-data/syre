@@ -5,7 +5,7 @@ use super::{
 use crate::error;
 use notify::event::{CreateKind, EventKind as NotifyEventKind, ModifyKind, RemoveKind, RenameMode};
 use notify_debouncer_full::{DebouncedEvent, FileIdCache};
-use std::{assert_matches::assert_matches, collections::HashMap, fs, io, path::PathBuf};
+use std::{collections::HashMap, fs, io, path::PathBuf};
 use syre_local::common as local_common;
 
 impl FsWatcher {
@@ -619,8 +619,8 @@ impl FsWatcher {
                 }
 
                 [e1, e2] => {
-                    assert_matches!(e1.kind, NotifyEventKind::Remove(_));
-                    assert_matches!(e2.kind, NotifyEventKind::Create(_));
+                    std::assert_matches!(e1.kind, NotifyEventKind::Remove(_));
+                    std::assert_matches!(e2.kind, NotifyEventKind::Create(_));
                     assert_eq!(e1.paths[0], *path);
                     assert_eq!(e2.paths[0], *path);
 

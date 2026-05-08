@@ -1,9 +1,9 @@
 // NB: Writes to manifests.
 use super::*;
-use crate::{event as app, server::event as fs_event, Command, Error, Event};
+use crate::{Command, Error, Event, event as app, server::event as fs_event};
 use crossbeam::channel::{Receiver, Sender};
+use std::fs;
 use std::time::Instant;
-use std::{assert_matches::assert_matches, fs};
 use syre_core::graph::ResourceTree;
 use syre_local::{
     common as local_common,
@@ -57,7 +57,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::ProjectManifest(
                 app::StaticResourceEvent::Created
@@ -72,7 +72,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Created))
         );
@@ -85,7 +85,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Created))
         );
@@ -100,7 +100,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::ProjectManifest(
                 app::StaticResourceEvent::Removed
@@ -115,7 +115,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::UserManifest(app::StaticResourceEvent::Removed))
         );
@@ -128,7 +128,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::LocalConfig(app::StaticResourceEvent::Removed))
         );
@@ -143,7 +143,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::ProjectManifest(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
@@ -158,7 +158,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::UserManifest(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
@@ -173,7 +173,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Config(app::Config::LocalConfig(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
@@ -209,7 +209,7 @@ mod convert_fs {
         manifest.save().unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::FolderRemoved)
         );
@@ -226,7 +226,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(*events[0].kind(), EventKind::Project(app::Project::Moved));
+        std::assert_matches!(*events[0].kind(), EventKind::Project(app::Project::Moved));
         // -- project folder end
 
         // -- config dir
@@ -238,7 +238,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::ConfigDir(app::StaticResourceEvent::Created))
         );
@@ -265,7 +265,7 @@ mod convert_fs {
         manifest.save().unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::ConfigDir(app::StaticResourceEvent::Removed))
         );
@@ -282,7 +282,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::ConfigDir(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Other
@@ -303,7 +303,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Created))
         );
@@ -323,7 +323,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Removed))
         );
@@ -340,7 +340,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Renamed))
         );
@@ -356,7 +356,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Modified(
                 app::ModifiedKind::Other
@@ -374,7 +374,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Moved))
         );
@@ -390,7 +390,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::AnalysisDir(app::ResourceEvent::Removed))
         );
@@ -409,7 +409,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Created))
         );
@@ -428,7 +428,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Removed))
         );
@@ -445,7 +445,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Renamed))
         );
@@ -461,7 +461,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Modified(
                 app::ModifiedKind::Other
@@ -479,7 +479,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Moved))
         );
@@ -495,7 +495,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::DataDir(app::ResourceEvent::Removed))
         );
@@ -514,7 +514,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(app::StaticResourceEvent::Created))
         );
@@ -527,7 +527,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(app::StaticResourceEvent::Removed))
         );
@@ -540,7 +540,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
@@ -558,7 +558,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(app::StaticResourceEvent::Removed))
         );
@@ -574,7 +574,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(app::StaticResourceEvent::Created))
         );
@@ -593,7 +593,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(app::StaticResourceEvent::Removed))
         );
@@ -612,7 +612,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(app::StaticResourceEvent::Removed))
         );
@@ -632,7 +632,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Properties(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Other)
@@ -653,7 +653,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Created))
         );
@@ -666,7 +666,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Removed))
         );
@@ -679,7 +679,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Data
@@ -697,7 +697,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Removed))
         );
@@ -713,7 +713,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Created))
         );
@@ -732,7 +732,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Removed))
         );
@@ -751,7 +751,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Removed))
         );
@@ -771,7 +771,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Settings(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Other
@@ -792,7 +792,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Created))
         );
@@ -805,7 +805,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
@@ -818,7 +818,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Data
@@ -836,7 +836,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
@@ -852,7 +852,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Created))
         );
@@ -871,7 +871,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
@@ -890,7 +890,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Removed))
         );
@@ -910,7 +910,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Project(app::Project::Analyses(app::StaticResourceEvent::Modified(
                 app::ModifiedKind::Other
@@ -934,7 +934,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Created));
+        std::assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Created));
 
         // -- removed
         let events = watcher
@@ -945,7 +945,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Removed)
         );
@@ -964,7 +964,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Moved));
+        std::assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Moved));
 
         let events = watcher
             .process_event_fs_to_apps(&fs_event::Event::new(
@@ -977,7 +977,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Created));
+        std::assert_matches!(*events[0].kind(), EventKind::Graph(app::Graph::Created));
     }
 
     pub fn test_container(watcher: &FsWatcher, project: &Project<LocalProject, ContainerTree>) {
@@ -999,7 +999,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Renamed)
         );
@@ -1012,7 +1012,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::ConfigDir(app::StaticResourceEvent::Removed))
         );
@@ -1028,11 +1028,11 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 2);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::ConfigDir(app::StaticResourceEvent::Removed))
         );
-        assert_matches!(
+        std::assert_matches!(
             *events[1].kind(),
             EventKind::Folder(app::ResourceEvent::Created)
         );
@@ -1048,11 +1048,11 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 2);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Removed)
         );
-        assert_matches!(
+        std::assert_matches!(
             *events[1].kind(),
             EventKind::Container(app::Container::ConfigDir(app::StaticResourceEvent::Created))
         );
@@ -1066,7 +1066,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Properties(
                 app::StaticResourceEvent::Created
@@ -1081,7 +1081,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Properties(
                 app::StaticResourceEvent::Removed
@@ -1099,7 +1099,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Properties(
                 app::StaticResourceEvent::Created
@@ -1117,7 +1117,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Properties(
                 app::StaticResourceEvent::Removed
@@ -1134,7 +1134,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Properties(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
@@ -1153,7 +1153,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Settings(app::StaticResourceEvent::Created))
         );
@@ -1168,7 +1168,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Settings(app::StaticResourceEvent::Removed))
         );
@@ -1184,7 +1184,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Settings(app::StaticResourceEvent::Created))
         );
@@ -1200,7 +1200,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Settings(app::StaticResourceEvent::Removed))
         );
@@ -1215,7 +1215,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Container(app::Container::Settings(
                 app::StaticResourceEvent::Modified(app::ModifiedKind::Data)
@@ -1244,7 +1244,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AssetFile(app::ResourceEvent::Created)
         );
@@ -1257,7 +1257,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AssetFile(app::ResourceEvent::Removed)
         );
@@ -1273,7 +1273,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AssetFile(app::ResourceEvent::Moved)
         );
@@ -1289,7 +1289,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AssetFile(app::ResourceEvent::Renamed)
         );
@@ -1302,7 +1302,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AssetFile(app::ResourceEvent::Modified(app::ModifiedKind::Data))
         );
@@ -1322,7 +1322,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AnalysisFile(app::ResourceEvent::Created)
         );
@@ -1335,7 +1335,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AnalysisFile(app::ResourceEvent::Removed)
         );
@@ -1353,7 +1353,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AnalysisFile(app::ResourceEvent::Moved)
         );
@@ -1369,7 +1369,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AnalysisFile(app::ResourceEvent::Renamed)
         );
@@ -1384,7 +1384,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::AnalysisFile(app::ResourceEvent::Modified(app::ModifiedKind::Data))
         );
@@ -1405,7 +1405,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Created)
         );
@@ -1420,7 +1420,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Created)
         );
@@ -1433,7 +1433,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Created)
         );
@@ -1448,7 +1448,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Created)
         );
@@ -1463,7 +1463,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Removed)
         );
@@ -1478,7 +1478,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Removed)
         );
@@ -1491,7 +1491,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Removed)
         );
@@ -1506,7 +1506,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Removed)
         );
@@ -1524,7 +1524,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Moved)
         );
@@ -1540,7 +1540,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Moved)
         );
@@ -1556,7 +1556,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Moved)
         );
@@ -1574,7 +1574,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Moved)
         );
@@ -1592,7 +1592,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Renamed)
         );
@@ -1608,7 +1608,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Renamed)
         );
@@ -1624,7 +1624,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Renamed)
         );
@@ -1640,7 +1640,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::File(app::ResourceEvent::Renamed)
         );
@@ -1663,7 +1663,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             app::EventKind::Folder(app::ResourceEvent::Created)
         );
@@ -1676,7 +1676,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             app::EventKind::Folder(app::ResourceEvent::Removed)
         );
@@ -1692,7 +1692,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Moved)
         );
@@ -1708,7 +1708,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Created)
         );
@@ -1724,7 +1724,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Renamed)
         );
@@ -1740,7 +1740,7 @@ mod convert_fs {
             .unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             *events[0].kind(),
             EventKind::Folder(app::ResourceEvent::Moved)
         );

@@ -106,7 +106,7 @@ pub fn PropertiesBar() -> impl IntoView {
                 //         .read()
                 //         .iter()
                 //         .map(|resource| {
-                //             assert_matches!(
+                //             std::assert_matches!(
                 //                 resource.kind(),
                 //                 ui_lib::state::workspace_graph::ResourceKind::Container
                 //             );
@@ -138,7 +138,7 @@ pub fn PropertiesBar() -> impl IntoView {
                 //         selected
                 //             .iter()
                 //             .map(|resource| {
-                //                 assert_matches!(
+                //                 std::assert_matches!(
                 //                     resource.kind(),
                 //                     ui_lib::state::workspace_graph::ResourceKind::Asset
                 //                 );

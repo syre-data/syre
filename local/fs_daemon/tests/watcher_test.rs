@@ -1,6 +1,4 @@
-#![feature(assert_matches)]
 use std::{
-    assert_matches::assert_matches,
     fs,
     ops::{Deref, DerefMut},
     path::PathBuf,
@@ -49,7 +47,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::UserManifest(
             event::StaticResourceEvent::Removed
@@ -60,7 +58,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::UserManifest(
             event::StaticResourceEvent::Created
@@ -72,7 +70,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::UserManifest(
             event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
@@ -83,7 +81,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::ProjectManifest(
             event::StaticResourceEvent::Removed
@@ -94,7 +92,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::ProjectManifest(
             event::StaticResourceEvent::Created
@@ -106,7 +104,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::ProjectManifest(
             event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
@@ -117,7 +115,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::LocalConfig(
             event::StaticResourceEvent::Removed
@@ -128,7 +126,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::LocalConfig(
             event::StaticResourceEvent::Created
@@ -140,7 +138,7 @@ fn test_watcher_app() {
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap();
     let event = event.unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::LocalConfig(
             event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
@@ -185,7 +183,7 @@ fn test_watcher_project() {
     project_manifest.save();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Config(event::Config::ProjectManifest(
             event::StaticResourceEvent::Modified(event::ModifiedKind::Data)
@@ -195,7 +193,7 @@ fn test_watcher_project() {
     fs::create_dir(common::app_dir_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::ConfigDir(
             event::StaticResourceEvent::Created
@@ -205,7 +203,7 @@ fn test_watcher_project() {
     fs::File::create(common::project_file_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::Properties(
             event::StaticResourceEvent::Created
@@ -215,7 +213,7 @@ fn test_watcher_project() {
     fs::remove_file(common::project_file_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::Properties(
             event::StaticResourceEvent::Removed
@@ -225,7 +223,7 @@ fn test_watcher_project() {
     fs::File::create(common::project_settings_file_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::Settings(
             event::StaticResourceEvent::Created
@@ -235,7 +233,7 @@ fn test_watcher_project() {
     fs::remove_file(common::project_settings_file_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::Settings(
             event::StaticResourceEvent::Removed
@@ -245,7 +243,7 @@ fn test_watcher_project() {
     fs::File::create(common::analyses_file_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::Analyses(
             event::StaticResourceEvent::Created
@@ -255,7 +253,7 @@ fn test_watcher_project() {
     fs::remove_file(common::analyses_file_of(prj.path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::Analyses(
             event::StaticResourceEvent::Removed
@@ -285,7 +283,7 @@ fn test_watcher_project() {
     fs::create_dir(project.analysis_root_path().unwrap()).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::AnalysisDir(event::ResourceEvent::Created))
     );
@@ -294,7 +292,7 @@ fn test_watcher_project() {
     fs::create_dir(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Created)
     );
@@ -302,7 +300,7 @@ fn test_watcher_project() {
     fs::remove_dir(path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Removed)
     );
@@ -311,7 +309,7 @@ fn test_watcher_project() {
     fs::File::create(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::File(event::ResourceEvent::Created)
     );
@@ -319,7 +317,7 @@ fn test_watcher_project() {
     fs::remove_file(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::File(event::ResourceEvent::Removed)
     );
@@ -330,7 +328,7 @@ fn test_watcher_project() {
         fs::File::create(&path).unwrap();
         let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
         assert_eq!(event.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             event[0].kind(),
             EventKind::AnalysisFile(event::ResourceEvent::Created)
         );
@@ -338,7 +336,7 @@ fn test_watcher_project() {
         fs::remove_file(&path).unwrap();
         let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
         assert_eq!(event.len(), 1);
-        assert_matches!(
+        std::assert_matches!(
             event[0].kind(),
             EventKind::AnalysisFile(event::ResourceEvent::Removed)
         );
@@ -347,7 +345,7 @@ fn test_watcher_project() {
     fs::remove_dir(project.analysis_root_path().unwrap()).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::AnalysisDir(event::ResourceEvent::Removed))
     );
@@ -355,7 +353,7 @@ fn test_watcher_project() {
     fs::create_dir(project.data_root_path()).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::DataDir(event::ResourceEvent::Created))
     );
@@ -363,7 +361,7 @@ fn test_watcher_project() {
     fs::create_dir(common::app_dir_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::ConfigDir(
             event::StaticResourceEvent::Created
@@ -373,7 +371,7 @@ fn test_watcher_project() {
     fs::File::create(common::container_file_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Properties(
             event::StaticResourceEvent::Created
@@ -383,7 +381,7 @@ fn test_watcher_project() {
     fs::remove_file(common::container_file_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Properties(
             event::StaticResourceEvent::Removed
@@ -393,7 +391,7 @@ fn test_watcher_project() {
     fs::File::create(common::container_settings_file_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Settings(
             event::StaticResourceEvent::Created
@@ -403,7 +401,7 @@ fn test_watcher_project() {
     fs::remove_file(common::container_settings_file_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Settings(
             event::StaticResourceEvent::Removed
@@ -413,7 +411,7 @@ fn test_watcher_project() {
     fs::File::create(common::assets_file_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Assets(
             event::StaticResourceEvent::Created
@@ -423,7 +421,7 @@ fn test_watcher_project() {
     fs::remove_file(common::assets_file_of(project.data_root_path())).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Assets(
             event::StaticResourceEvent::Removed
@@ -480,7 +478,7 @@ fn test_watcher_project() {
     fs::File::create(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::AssetFile(event::ResourceEvent::Created)
     );
@@ -489,7 +487,7 @@ fn test_watcher_project() {
     fs::rename(path, &renamed_path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::AssetFile(event::ResourceEvent::Renamed)
     );
@@ -497,7 +495,7 @@ fn test_watcher_project() {
     fs::remove_file(&renamed_path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::AssetFile(event::ResourceEvent::Removed)
     );
@@ -506,7 +504,7 @@ fn test_watcher_project() {
     fs::create_dir(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Created)
     );
@@ -514,7 +512,7 @@ fn test_watcher_project() {
     fs::remove_dir(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Removed)
     );
@@ -522,7 +520,7 @@ fn test_watcher_project() {
     fs::create_dir(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Created)
     );
@@ -530,7 +528,7 @@ fn test_watcher_project() {
     fs::create_dir(common::app_dir_of(&path)).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::ConfigDir(
             event::StaticResourceEvent::Created
@@ -540,7 +538,7 @@ fn test_watcher_project() {
     fs::File::create(common::assets_file_of(&path)).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Assets(
             event::StaticResourceEvent::Created
@@ -550,7 +548,7 @@ fn test_watcher_project() {
     fs::File::create(common::container_settings_file_of(&path)).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Settings(
             event::StaticResourceEvent::Created
@@ -560,7 +558,7 @@ fn test_watcher_project() {
     fs::File::create(common::container_file_of(&path)).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Properties(
             event::StaticResourceEvent::Created
@@ -570,7 +568,7 @@ fn test_watcher_project() {
     fs::remove_dir_all(&path).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Removed)
     );
@@ -579,14 +577,14 @@ fn test_watcher_project() {
     container.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Created));
+    std::assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Created));
 
     let mut to = container.base_path().to_path_buf();
     to.set_file_name("child-1");
     fs::rename(container.base_path(), &to).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Container(event::Container::Renamed)
     );
@@ -597,13 +595,13 @@ fn test_watcher_project() {
     container_sibling.save().unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Created));
+    std::assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Created));
 
     let to = container.base_path().join(path.file_name().unwrap());
     fs::rename(container_sibling.base_path(), &to).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Moved));
+    std::assert_matches!(event[0].kind(), EventKind::Graph(event::Graph::Moved));
     container_sibling.set_base_path(to);
 
     fs::remove_dir_all(container_sibling.base_path()).unwrap();
@@ -621,7 +619,7 @@ fn test_watcher_project() {
     // TODO: Could potentially us file id to check if folder is still accessible,
     // and if so determine file type.
     #[cfg(target_os = "linux")]
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Folder(event::ResourceEvent::Removed)
     );
@@ -629,7 +627,7 @@ fn test_watcher_project() {
     fs::remove_dir_all(project.data_root_path()).unwrap();
     let event = fs_event_rx.recv_timeout(TIMEOUT).unwrap().unwrap();
     assert_eq!(event.len(), 1);
-    assert_matches!(
+    std::assert_matches!(
         event[0].kind(),
         EventKind::Project(event::Project::DataDir(event::ResourceEvent::Removed))
     );

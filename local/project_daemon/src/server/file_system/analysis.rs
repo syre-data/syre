@@ -1,5 +1,4 @@
 use crate::{Update, Daemon, event as update, server, state};
-use std::assert_matches::assert_matches;
 use syre_core as core;
 use syre_fs_daemon::{EventKind, event};
 use syre_local::{self as local, TryReducible, project::analysis};
@@ -38,7 +37,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AnalysisFile(event::ResourceEvent::Created)
         );
@@ -50,7 +49,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AnalysisFile(event::ResourceEvent::Removed)
         );
@@ -133,7 +132,7 @@ impl Daemon {
     ) -> Vec<Update> {
         use syre_local::types::AnalysisKind;
 
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AnalysisFile(event::ResourceEvent::Renamed)
         );
@@ -254,7 +253,7 @@ impl Daemon {
         &mut self,
         event: syre_fs_daemon::Event,
     ) -> Vec<Update> {
-        assert_matches!(
+        std::assert_matches!(
             event.kind(),
             EventKind::AnalysisFile(event::ResourceEvent::Modified(event::ModifiedKind::Other))
         );

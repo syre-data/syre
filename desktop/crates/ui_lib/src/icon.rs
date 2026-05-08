@@ -7,7 +7,7 @@ pub use {
     icondata::FaFilterSolid as Filter, icondata::FaFlagRegular as Flag,
     icondata::FaPenSolid as Edit, icondata::FaTrashCanSolid as Trash,
     icondata::IoSettingsSharp as Settings, icondata::LuEye as Eye,
-    icondata::TbEyeClosed as EyeClosed, icondata::VsChevronDown as ChevronDown,
+    icondata::TbEyeClosedOutline as EyeClosed, icondata::VsChevronDown as ChevronDown,
     icondata::VsChevronRight as ChevronRight,
 };
 

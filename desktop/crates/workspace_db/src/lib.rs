@@ -1,5 +1,3 @@
-#![feature(assert_matches)]
-
 pub(crate) mod filter;
 mod project_bar;
 mod state;

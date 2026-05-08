@@ -1,6 +1,6 @@
 [package]
 name = "syre-desktop"
-version = "0.11.11"
+version = "0.11.12"
 description = "Syre desktop application."
 authors = ["Brian Carlsen <carlsen.bri@gmail.com>"]
 edition = "2024"
@@ -60,5 +60,6 @@ tracing = [
     "dep:tracing-appender",
     "dep:tracing-timing",
 ]
+
 
 

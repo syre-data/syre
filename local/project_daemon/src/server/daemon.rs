@@ -68,12 +68,12 @@ impl Builder {
         fs_daemon.add_paths(self.paths);
 
         thread::Builder::new()
-            .name("syre local database file system daemon".to_string())
+            .name("syre local file system daemon".to_string())
             .spawn(move || fs_daemon.run())
             .unwrap();
 
         thread::Builder::new()
-            .name("syre local database query actor".to_string())
+            .name("syre local query actor".to_string())
             .spawn(move || {
                 if let Err(err) = query_actor.run() {
                     #[cfg(feature = "tracing")]
@@ -458,7 +458,6 @@ mod windows {
 #[cfg(target_os = "macos")]
 mod macos {
     use super::*;
-    use notify_debouncer_full::DebouncedEvent;
     use std::path::{Component, Path};
     use std::time::Instant;
 
@@ -468,113 +467,92 @@ mod macos {
         /// Handle file system events.
         /// To be used with [`notify::Watcher`]s.
         #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
-        pub fn handle_file_system_events(&mut self, events: DebounceEventResult) -> Result {
+        pub fn handle_file_system_events(&mut self, events: daemon::EventResult) -> crate::Result {
             let events = match events {
                 Ok(events) => events,
                 Err(errs) => self.handle_file_system_daemon_errors(errs)?,
             };
 
-            let mut events = FileSystemEventProcessor::process(events);
-            events.sort_by(|a, b| a.time.cmp(&b.time));
             let updates = self.process_file_system_events(events);
+            #[cfg(feature = "tracing")]
+            tracing::debug!(?updates);
             self.publish_updates(&updates);
+            #[cfg(feature = "tracing")]
+            tracing::trace!(target: "syre-project-daemon::state", state = ?self.state);
             Ok(())
         }
 
+        #[cfg_attr(feature = "tracing", tracing::instrument(skip(self)))]
         fn handle_file_system_daemon_errors(
             &self,
-            errors: Vec<notify::Error>,
-        ) -> Result<Vec<DebouncedEvent>> {
-            const WATCH_ROOT_MOVED_PATTERN: &str =
-                r"IO error for operation on (.+): No such file or directory \(os error 2\)";
-
-            let (root_moved_errors, unhandled_errors): (Vec<_>, Vec<_>) =
-                errors.into_iter().partition(|err| match &err.kind {
-                    notify::ErrorKind::Generic(msg)
-                        if msg.contains("No such file or directory (os error 2)") =>
-                    {
-                        true
-                    }
-
-                    _ => false,
-                });
-
-            let root_moved_pattern = regex::Regex::new(WATCH_ROOT_MOVED_PATTERN).unwrap();
-            let moved_roots = root_moved_errors
+            errors: Vec<daemon::Error>,
+        ) -> crate::Result<Vec<daemon::Event>> {
+            let (events, errors) = errors
                 .into_iter()
-                .map(|err| {
-                    let notify::ErrorKind::Generic(msg) = err.kind else {
-                        panic!("failed to partition errors correctly");
-                    };
-
-                    match root_moved_pattern.captures(&msg) {
-                        None => panic!("unknown error message"),
-                        Some(captures) => {
-                            let path = captures.get(1).unwrap().as_str().to_string();
-                            PathBuf::from(path)
-                        }
+                .map(|error| match error {
+                    daemon::Error::Watch(error) => {
+                        self.handle_file_system_daemon_error_watch(error)
+                    }
+                    daemon::Error::Processing { .. } => {
+                        self.handle_file_system_daemon_error_processing(error)
                     }
                 })
-                .collect::<Vec<_>>();
+                .partition::<Vec<_>, _>(|result| result.is_ok());
 
-            if moved_roots.len() == 0 && unhandled_errors.len() > 0 {
-                #[cfg(feature = "tracing")]
-                tracing::debug!("watch error: {unhandled_errors:?}");
-                return Err(crate::Error::Database(format!("{unhandled_errors:?}")));
+            if errors.is_empty() {
+                let events = events
+                    .into_iter()
+                    .flat_map(|event| event.unwrap())
+                    .collect();
+                Ok(events)
+            } else {
+                todo!("{errors:?}");
             }
+        }
 
-            let mut events = Vec::with_capacity(moved_roots.len() * 2);
-            for path in moved_roots {
-                let final_path = match self.get_final_path(&path) {
-                    Ok(Some(final_path)) => Some(final_path),
-
-                    Ok(None) => {
-                        #[cfg(feature = "tracing")]
-                        tracing::debug!("could not get final path of {path:?}");
-                        continue;
-                    }
-
-                    Err(file_path_from_id::Error::NoFileInfo) => {
-                        // path deleted
-                        None
-                    }
-
-                    Err(err) => {
-                        #[cfg(feature = "tracing")]
-                        tracing::debug!("error retrieving final path of {path:?}: {err:?}");
-                        continue;
-                    }
-                };
-
-                #[cfg(feature = "tracing")]
-                tracing::debug!(?final_path);
-
-                events.push(DebouncedEvent::new(
-                    notify::Event {
-                        kind: notify::EventKind::Remove(notify::event::RemoveKind::Folder),
-                        paths: vec![path],
-                        attrs: notify::event::EventAttributes::new(),
-                    },
-                    Instant::now(),
-                ));
-
-                if let Some(final_path) = final_path {
-                    if !path_in_trash(&final_path) {
-                        events.push(DebouncedEvent::new(
-                            notify::Event {
-                                kind: notify::EventKind::Create(notify::event::CreateKind::Folder),
-                                paths: vec![final_path],
-                                attrs: notify::event::EventAttributes::new(),
-                            },
-                            Instant::now(),
-                        ));
-                    }
+        fn handle_file_system_daemon_error_watch(
+            &self,
+            error: notify::Error,
+        ) -> crate::Result<Vec<daemon::Event>> {
+            match &error.kind {
+                notify::ErrorKind::PathNotFound => {
+                    #[cfg(feature = "tracing")]
+                    tracing::trace!("file(s) not found: {:?}", error.paths,);
+                    Ok(vec![])
                 }
+                notify::ErrorKind::Io(err) => match err.kind() {
+                    io::ErrorKind::NotFound => {
+                        #[cfg(feature = "tracing")]
+                        tracing::trace!("file(s) not found: {:?}", error.paths,);
+                        Ok(vec![])
+                    }
+                    _ => todo!("{error:?}"),
+                },
+                _ => todo!("{error:?}"),
             }
-            #[cfg(feature = "tracing")]
-            tracing::debug!(?events);
+        }
 
-            Ok(events)
+        fn handle_file_system_daemon_error_processing(
+            &self,
+            error: daemon::Error,
+        ) -> crate::Result<Vec<daemon::Event>> {
+            let daemon::Error::Processing { events, kind } = &error else {
+                panic!("invalid event kind");
+            };
+
+            match *kind {
+                daemon::error::Process::NotFound => {
+                    #[cfg(feature = "tracing")]
+                    tracing::trace!(
+                        "could not process events because resource was not found, they are being ignored: {events:?}"
+                    );
+                    Ok(vec![])
+                }
+                daemon::error::Process::UnknownFileType => todo!("{error:?}"),
+                daemon::error::Process::Canonicalize => todo!("{error:?}"),
+                daemon::error::Process::LoadProject => todo!("{error:?}"),
+                daemon::error::Process::InvalidState => todo!("{error:?}"),
+            }
         }
     }
 

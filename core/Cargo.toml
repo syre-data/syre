@@ -30,7 +30,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true, optional = true }
 uuid = { workspace = true, features = ["serde", "v4"] }
-validator = "0.20"
+validator = "0.21"
 
 has_id = { path = "../has_id", features = ["derive"] }
 

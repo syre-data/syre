@@ -27,7 +27,7 @@ pub fn InputNumber(
     const DECIMAL_MARKER: &'static str = ".";
 
     let _ = Effect::watch(
-        value,
+        move || value.get(),
         move |value, _, prev_validity| {
             let Some(set_is_valid) = set_is_valid else {
                 return true;
@@ -105,7 +105,7 @@ pub mod debounced {
             leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            value.clone(),
+            move || value.get(),
             move |value, _, _| {
                 set_input_value(value::State::clean(value.clone()));
             },
@@ -142,14 +142,13 @@ pub mod debounced {
         #[prop(into)] value: Signal<bool>,
         #[prop(into)] oninput: Callback<bool>,
         #[prop(into)] debounce: Signal<f64>,
-        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = signal(value::State::clean(value.get_untracked()));
         let input_value: Signal<value::State<bool>> =
             leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            value.clone(),
+            move || value.get(),
             move |value, _, _| {
                 set_input_value(value::State::clean(*value));
             },
@@ -157,7 +156,7 @@ pub mod debounced {
         );
 
         let _ = Effect::watch(
-            input_value,
+            move || input_value.get(),
             move |input_value, _, _| {
                 if input_value.is_dirty()
                     && value.with_untracked(|value| input_value.value() != value)
@@ -182,7 +181,6 @@ pub mod debounced {
                         oninput.run(v);
                     }
                 }
-                class=class
             />
         }
     }
@@ -192,15 +190,13 @@ pub mod debounced {
         #[prop(into)] value: Signal<String>,
         #[prop(into)] oninput: Callback<String>,
         #[prop(into)] debounce: Signal<f64>,
-        #[prop(into, optional)] placeholder: MaybeProp<String>,
-        #[prop(into, optional)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (input_value, set_input_value) = signal(value::State::clean(value.get_untracked()));
         let input_value: Signal<value::State<String>> =
             leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            value.clone(),
+            move || value.get(),
             move |value, _, _| {
                 set_input_value(value::State::clean(value.clone()));
             },
@@ -228,8 +224,6 @@ pub mod debounced {
                         oninput.run(v);
                     }
                 }
-                placeholder=placeholder
-                class=class
             >
 
                 {move || input_value.with(|value| value.value().clone())}

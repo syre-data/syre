@@ -7,7 +7,6 @@ pub mod kind {
         #[prop(into)] value: Signal<Option<String>>,
         #[prop(into)] oninput: Callback<Option<String>>,
         #[prop(into)] debounce: Signal<f64>,
-        #[prop(into, optional)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = signal(value.get_untracked());
         let input_value = Signal::derive(move || {
@@ -25,14 +24,14 @@ pub mod kind {
         });
 
         let _ = Effect::watch(
-            processed_value,
+            move || processed_value.get(),
             move |processed_value, _, _| {
                 oninput.run(processed_value.clone());
             },
             false,
         );
 
-        view! { <InputText value=input_value oninput=oninput_text debounce attr:class=class /> }
+        view! { <InputText value=input_value oninput=oninput_text debounce /> }
     }
 }
 
@@ -63,7 +62,7 @@ pub mod description {
         });
 
         let _ = Effect::watch(
-            processed_value,
+            move || processed_value.get(),
             move |processed_value, _, _| {
                 oninput.run(processed_value.clone());
             },
@@ -90,7 +89,6 @@ pub mod tags {
         #[prop(into)] value: Signal<Vec<String>>,
         #[prop(into)] oninput: Callback<Vec<String>>,
         #[prop(into)] debounce: Signal<f64>,
-        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = signal(value.get_untracked());
         let input_value = Signal::derive(move || value.with(|value| value.join(", ")));
@@ -119,14 +117,14 @@ pub mod tags {
         });
 
         let _ = Effect::watch(
-            processed_value,
+            move || processed_value.get(),
             move |processed_value, _, _| {
                 oninput.run(processed_value.clone());
             },
             false,
         );
 
-        view! { <InputText value=input_value oninput=oninput_text debounce attr:class=class /> }
+        view! { <InputText value=input_value oninput=oninput_text debounce /> }
     }
 }
 
@@ -152,8 +150,6 @@ pub mod metadata {
         /// Reset the state of the form.
         #[prop(optional, into)]
         reset: Option<Trigger>,
-        #[prop(optional, into)] id: MaybeProp<String>,
-        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let input_debounce = expect_context::<InputDebounce>();
         let (key_input, set_key_input) = signal("".to_string());
@@ -211,7 +207,7 @@ pub mod metadata {
         };
 
         view! {
-            <form on:submit=submit id=id class=class>
+            <form on:submit=submit >
                 <div class="pb-1">
                     <input
                         name="key"
@@ -326,7 +322,7 @@ pub mod metadata {
             leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            value.clone(),
+            move || value.get(),
             move |value, _, _| {
                 let Value::Bool(value) = value else {
                     panic!("invalid value kind");
@@ -338,7 +334,7 @@ pub mod metadata {
         );
 
         let _ = Effect::watch(
-            input_value,
+            move || input_value.get(),
             move |input_value, _, _| {
                 if input_value.is_dirty()
                     && value.with_untracked(|value| {
@@ -396,7 +392,7 @@ pub mod metadata {
             leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            value.clone(),
+            move || value.get(),
             move |value, _, _| {
                 let Value::String(value) = value else {
                     panic!("invalid value kind");
@@ -458,7 +454,7 @@ pub mod metadata {
         let input_value: Signal<String> = leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            input_value,
+            move || input_value.get(),
             move |input_value, _, _| {
                 let value = input_value.trim_start_matches("0");
                 let Ok(value) = serde_json::from_str(value) else {
@@ -541,7 +537,7 @@ pub mod metadata {
             leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            input_value,
+            move || input_value.get(),
             move |input_value, _, _| {
                 if let Some(value) = input_value {
                     oninput.run(value.clone());
@@ -672,7 +668,7 @@ pub mod metadata {
         let input_value: Signal<String> = leptos_use::signal_debounced(input_value, debounce);
 
         let _ = Effect::watch(
-            value,
+            move || value.get(),
             move |value, _, _| {
                 let Value::Array(value) = value else {
                     panic!("invalid value kind");
@@ -690,7 +686,7 @@ pub mod metadata {
         );
 
         let _ = Effect::watch(
-            input_value,
+            move || input_value.get(),
             move |input_value, _, _| {
                 set_error(None);
                 match str_to_array_value(input_value) {
@@ -948,7 +944,6 @@ pub mod analysis_associations {
     pub fn AddAssociation(
         #[prop(into)] available_analyses: Signal<Vec<AnalysisInfo>>,
         #[prop(into)] onadd: Callback<core::project::AnalysisAssociation>,
-        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let analysis_node = NodeRef::<html::Select>::new();
         let priority_node = NodeRef::<html::Input>::new();
@@ -972,7 +967,7 @@ pub mod analysis_associations {
         };
 
         view! {
-            <div class=class>
+            <div >
                 <div>
                     <div class="pb-1">
                         <select node_ref=analysis_node class="input-compact w-full">
@@ -1127,7 +1122,7 @@ pub mod bulk {
             };
 
             let _ = Effect::watch(
-                processed_value,
+                move || processed_value.get(),
                 move |processed_value, _, _| {
                     oninput.run(processed_value.clone());
                 },
@@ -1156,7 +1151,6 @@ pub mod bulk {
             #[prop(into)] value: Signal<Value<Option<String>>>,
             #[prop(into)] oninput: Callback<Option<String>>,
             #[prop(into)] debounce: Signal<f64>,
-            #[prop(optional, into)] class: MaybeProp<String>,
         ) -> impl IntoView {
             let (processed_value, set_processed_value) = signal({
                 value.with_untracked(|value| match value {
@@ -1197,7 +1191,7 @@ pub mod bulk {
             };
 
             let _ = Effect::watch(
-                processed_value,
+                move || processed_value.get(),
                 move |processed_value, _, _| {
                     oninput.run(processed_value.clone());
                 },
@@ -1209,8 +1203,6 @@ pub mod bulk {
                     value=Signal::derive(input_value)
                     oninput=oninput_text
                     debounce
-                    placeholder=MaybeProp::derive(placeholder)
-                    class
                 />
             }
         }
@@ -1230,11 +1222,6 @@ pub mod bulk {
         pub fn Editor(
             #[prop(into)] value: Signal<Vec<String>>,
             #[prop(into)] onremove: Callback<String>,
-
-            /// Classes applied to outer container.
-            #[prop(optional, into)]
-            class: MaybeProp<String>,
-
             /// Classes applied to individual tags.
             #[prop(optional, into)]
             tag_class: MaybeProp<String>,
@@ -1254,7 +1241,7 @@ pub mod bulk {
             };
 
             view! {
-                <div class=class>
+                <div >
                     <ul class="flex gap-2 flex-wrap">
                         {move || {
                             value
@@ -1291,7 +1278,6 @@ pub mod bulk {
             /// Reset the state of the form.
             #[prop(optional, into)]
             reset: Option<Trigger>,
-            #[prop(optional, into)] class: MaybeProp<String>,
         ) -> impl IntoView {
             let input_ref = NodeRef::<html::Input>::new();
 
@@ -1335,7 +1321,7 @@ pub mod bulk {
             };
 
             view! {
-                <form on:submit=add_tags class=class>
+                <form on:submit=add_tags >
                     <input
                         node_ref=input_ref
                         type="text"
@@ -1486,10 +1472,9 @@ pub mod bulk {
             value: Signal<Value>,
             #[prop(into)] oninput: Callback<data::Value>,
             #[prop(into)] onremove: Callback<()>,
-            #[prop(optional, into)] class: MaybeProp<String>,
         ) -> impl IntoView {
             view! {
-                <div class=class>
+                <div>
                     <div class="flex">
                         <span class="grow">{key}</span>
 
@@ -1798,7 +1783,7 @@ pub mod bulk {
             };
 
             let _ = Effect::watch(
-                input_value,
+                move || input_value.get(),
                 move |value, _, _| {
                     let val = value
                         .split([',', '\n', ';'])

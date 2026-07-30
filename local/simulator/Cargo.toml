@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 tempfile = { workspace = true }
 rand.workspace = true
-rand_chacha = "0.3.1"
+rand_chacha = "0.10"
 derive_more = { workspace = true, features = ["full"] }
 crossbeam = { workspace = true, features = ["crossbeam-channel"] }
 tracing.workspace = true

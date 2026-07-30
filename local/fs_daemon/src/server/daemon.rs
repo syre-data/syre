@@ -4,7 +4,7 @@
 // a folder created event at the final path.
 // However, there is still the chance for a race condition between the events being recieved
 // and what is on disk.
-// It is currenlty assumed that they are in sync.
+// It is currently assumed that they are in sync.
 #[path = "fs_processor.rs"]
 mod fs_processor;
 

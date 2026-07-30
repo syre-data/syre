@@ -9,6 +9,7 @@ target_out=${releases}/${target_file}
 
 mkdir -p ${releases}
 cargo build --release -F server
+mv ${releases}/${program_basename} ${releases}/${target_file}
 
 # copy to other packages
 lang=${root}/lang

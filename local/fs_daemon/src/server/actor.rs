@@ -138,7 +138,6 @@ mod macos {
     use super::DEBOUNCE_TIMEOUT;
     use crate::command::WatcherCommand as Command;
     use crossbeam::channel::{Receiver, Sender};
-    use notify::{Watcher, notify::RecursiveMode};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
     use std::path::Path;
 
@@ -189,38 +188,54 @@ mod macos {
                 };
 
                 match cmd {
-                    Command::Watch(path) => self.watch(path),
-                    Command::Unwatch(path) => self.unwatch(path),
-                    Command::FileId { path, tx } => {
-                        if let Err(err) =
-                            tx.send(self.watcher.cache().cached_file_id(&path).cloned())
-                        {
-                            #[cfg(feature = "tracing")]
-                            tracing::warn!("could not send file id: {err:?}");
-                        };
-                    }
+                    Command::Watch { path, tx } => self.watch(path, tx),
+                    Command::Unwatch { path, tx } => self.unwatch(path, tx),
                 }
             }
         }
 
         #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
-        fn watch(&mut self, path: impl AsRef<Path>) {
+        fn watch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
-            self.watcher
-                .watcher()
-                .watch(path, notify::RecursiveMode::Recursive)
-                .unwrap();
+            if let Err(err) = self.watcher.watch(path, notify::RecursiveMode::Recursive) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not watch path `{path:?}`: {err:?}");
+                if let Err(send_err) = tx.send(Err(err)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send watcher error: {send_err:?}");
+                }
 
-            self.watcher
-                .cache()
-                .add_root(path, notify::RecursiveMode::Recursive);
+                return;
+            }
+
+            #[cfg(feature = "tracing")]
+            tracing::trace!("watching {path:?}");
+            if let Err(err) = tx.send(Ok(())) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send `Ok`: {err:?}");
+            }
         }
 
         #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
-        fn unwatch(&mut self, path: impl AsRef<Path>) {
+        fn unwatch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
-            self.watcher.watcher().unwatch(path).unwrap();
-            self.watcher.cache().remove_root(path);
+            if let Err(err) = self.watcher.unwatch(path) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not unwatch path `{path:?}`: {err:?}");
+                if let Err(send_err) = tx.send(Err(err)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send unwatch error: {send_err:?}");
+                }
+
+                return;
+            }
+
+            #[cfg(feature = "tracing")]
+            tracing::trace!("unwatching {path:?}");
+            if let Err(err) = tx.send(Ok(())) {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not send `Ok`: {err:?}");
+            }
         }
     }
 }

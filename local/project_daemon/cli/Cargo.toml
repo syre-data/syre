@@ -17,5 +17,5 @@ zmq = { workspace = true }
 syre-core = { workspace = true, features=["clap"] }
 syre-local = { workspace = true }
 syre-project-daemon = { workspace = true, features = ["client"] }
-notify-debouncer-full = "0.5"
+notify-debouncer-full.workspace = true
 notify = "8.0"

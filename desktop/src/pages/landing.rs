@@ -56,34 +56,36 @@ fn Loading() -> impl IntoView {
 
 #[component]
 fn UserCountErrors(errors: ArcRwSignal<Errors>) -> impl IntoView {
-    errors.with(|errors| {
-        let errors = errors
-            .iter()
-            .map(|(_, error)| (*error).clone())
-            .collect::<Vec<_>>();
+    move || {
+        errors.with(|errors| {
+            let errors = errors
+                .iter()
+                .map(|(_, error)| (*error).clone())
+                .collect::<Vec<_>>();
 
-        let [error] = &errors[..] else {
-            panic!("invalid errors");
-        };
+            let [error] = &errors[..] else {
+                panic!("invalid errors");
+            };
 
-        view! {
-            <Show
-                when={
-                    let error = error.clone();
-                    move || {
-                        matches!(
-                            error.downcast_ref::<IoSerde>().unwrap(),
-                            IoSerde::Io(io::ErrorKind::NotFound)
-                        )
+            view! {
+                <Show
+                    when={
+                        let error = error.clone();
+                        move || {
+                            matches!(
+                                error.downcast_ref::<IoSerde>().unwrap(),
+                                IoSerde::Io(io::ErrorKind::NotFound)
+                            )
+                        }
                     }
-                }
 
-                fallback=|| view! { <div>"The user manifest is corrupt."</div> }
-            >
-                <Register />
-            </Show>
-        }
-    })
+                    fallback=|| view! { <div>"The user manifest is corrupt."</div> }
+                >
+                    <Register />
+                </Show>
+            }
+        })
+    }
 }
 
 #[component]
@@ -162,6 +164,8 @@ pub fn Register() -> impl IntoView {
 }
 
 async fn register(email: String, name: Option<String>) -> Result<User, String> {
+    use syre_desktop_lib::command::auth::error;
+
     #[derive(Serialize)]
     struct Args {
         email: String,
@@ -171,21 +175,15 @@ async fn register(email: String, name: Option<String>) -> Result<User, String> {
     tauri_sys::core::invoke_result("register_user", Args { email, name })
         .await
         .map_err(|err| match err {
-            syre_local::Error::IoSerde(err) => {
+            error::Register::AddUser(err) => {
                 #[cfg(feature = "tracing")]
                 tracing::debug!(?err);
-                "Could not load user manifest.".to_string()
+                "Could not add user".to_string()
             }
-            syre_local::Error::Users(syre_local::error::Users::InvalidEmail(_)) => {
-                "Invalid email.".to_string()
-            }
-            syre_local::Error::Users(syre_local::error::Users::DuplicateEmail(_)) => {
-                "Email is already registered.".to_string()
-            }
-            err => {
+            error::Register::SetActiveUser(err) => {
                 #[cfg(feature = "tracing")]
                 tracing::debug!(?err);
-                "Could not create user.".to_string()
+                "Could not set active user".to_string()
             }
         })
 }

@@ -1,4 +1,4 @@
-# Close syre database ports.
+# Close syre ports.
 $SYRE_SERVER_PROCESS_NAME = "trunk"
 $SYRE_SERVER_PORT = 1420
 

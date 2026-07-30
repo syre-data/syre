@@ -6,13 +6,6 @@ Welcome to the Syre developer guide.
 
 These are the kind of questions this guide aims to answer.
 
-## Table of contents
-
-- [Developer Guide](#developer-guide)
-  - [Table of contents](#table-of-contents)
-  - [On branches](#on-branches)
-  - [On commits](#on-commits)
-
 ## On branches
 
 We use the branch name convention `type/description` (e.g. `feat/updated_ui`, `fix/compile-error`).

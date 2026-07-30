@@ -6,8 +6,8 @@ target = "./index.html"
 [watch]
 ignore = [
     "**/*.mm_profdata",
-    "target",
-    "src-tauri/target",
+    "**/target/**",
+	"**/dist/**",
     "styles/output.css"
 ]
 
@@ -17,13 +17,13 @@ port = 1420
 open = false
 ws_protocol = "ws"
 
-# *nix
-[[hooks]]
-stage = "pre_build"
-command = "sh"
-command_arguments = ["-c", "npx @tailwindcss/cli -i styles/main.css -o styles/output.css"]
+# # *nix
+# [[hooks]]
+# stage = "pre_build"
+# command = "sh"
+# command_arguments = ["-c", "npx @tailwindcss/cli -i styles/main.css -o styles/output.css"]
 
-# Windows
-[hooks.windows]
-command = "cmd"
-command_arguments = ["/c", "npx @tailwindcss/cli -i styles\\main.css -o styles\\output.css"]
+# # Windows
+# [hooks.windows]
+# command = "cmd"
+# command_arguments = ["/c", "npx @tailwindcss/cli -i styles\\main.css -o styles\\output.css"]

@@ -225,7 +225,7 @@ impl Daemon {
         vec![Update::project_with_id(
             project_id,
             project_path,
-            update::Graph::Inserted {
+            update::Subgraph::Inserted {
                 parent: parent_path,
                 graph: subgraph_state,
             }

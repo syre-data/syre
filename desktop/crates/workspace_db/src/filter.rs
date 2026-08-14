@@ -61,7 +61,7 @@ pub fn DataFilter() -> impl IntoView {
     );
 
     let _ = Effect::watch(
-        query,
+        move || query.get(),
         move |query, prev_query, _| {
             if let Some(prev_query) = prev_query {
                 if query.trim() == prev_query.trim() {

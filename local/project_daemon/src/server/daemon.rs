@@ -305,7 +305,7 @@ impl Daemon {
             })
     }
 
-    /// Publish a updates to subscribers.
+    /// Publish updates to subscribers.
     /// Triggered by file system events.
     fn publish_updates(&self, updates: &Vec<Update>) {
         use crate::event;

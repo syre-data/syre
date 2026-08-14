@@ -465,7 +465,7 @@ mod properties {
             let (error, set_error) = signal(false);
 
             let _ = Effect::watch(
-                value,
+                move || value.get(),
                 move |value, _, _| {
                     set_input_value(value::State::clean(value.clone()));
                 },
@@ -473,12 +473,12 @@ mod properties {
             );
 
             let _ = Effect::watch(
-                input_value,
+                move || input_value.get(),
                 {
                     let project = project.clone();
                     let graph = graph.clone();
                     let container = container.clone();
-                    move |value, _, _| {
+                    move |value: &value::State<String>, _, _| {
                         if value.is_clean() {
                             return;
                         }
@@ -597,7 +597,7 @@ mod properties {
                     value
                     oninput=Callback::new(oninput)
                     debounce=*input_debounce
-                    class="input-compact w-full"
+                    attr:class="input-compact w-full"
                 />
             }
         }
@@ -657,7 +657,7 @@ mod properties {
                     value
                     oninput=Callback::new(oninput)
                     debounce=*input_debounce
-                    class="input-compact w-full align-top"
+                    attr:class="input-compact w-full align-top"
                 />
             }
         }
@@ -715,7 +715,7 @@ mod properties {
                     value
                     oninput=Callback::new(oninput)
                     debounce=*input_debounce
-                    class="input-compact w-full"
+                    attr:class="input-compact w-full"
                 />
             }
         }
@@ -822,7 +822,7 @@ mod properties {
                     <AddDatumEditor
                         keys=Signal::derive(keys)
                         onadd=Callback::new(onadd)
-                        class="w-full px-1"
+                        attr:class="w-full px-1"
                     />
                 </DetailPopout>
             }
@@ -837,10 +837,10 @@ mod properties {
             let messages = expect_context::<ui_lib::message::Messages>();
             let input_debounce = expect_context::<InputDebounce>();
             let (input_value, set_input_value) = signal(value.get_untracked());
-            let oninput = Callback::new(set_input_value);
+            let oninput = Callback::new(move |val| set_input_value.set(val));
 
             let _ = Effect::watch(
-                input_value,
+                move || input_value.get(),
                 {
                     let key = key.clone();
                     let project = project.clone();
@@ -1043,7 +1043,7 @@ mod properties {
                     <AddAssociationEditor
                         available_analyses
                         onadd=Callback::new(onadd)
-                        class="px-1"
+                        attr:class="px-1"
                     />
                 </DetailPopout>
             }
@@ -1214,7 +1214,7 @@ mod properties {
             });
 
             let _ = Effect::watch(
-                value,
+                move || value.get(),
                 move |value, _, _| {
                     update_association.dispatch(value.clone());
                 },

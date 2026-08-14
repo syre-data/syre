@@ -314,7 +314,7 @@ fn CreateProject(
     });
 
     view! {
-        <button on:mousedown=show_create_project_dialog class=class title=title>
+        <button on:mousedown=show_create_project_dialog class=move || class.get() title=title>
             {children()}
         </button>
 
@@ -470,7 +470,7 @@ fn InitializeProject(
     };
 
     view! {
-        <button on:mousedown=trigger_initialize_project class=class title=title>
+        <button on:mousedown=trigger_initialize_project class=move || class.get() title=title>
             {children()}
         </button>
     }
@@ -508,7 +508,7 @@ fn ImportProject(
     };
 
     view! {
-        <button on:mousedown=trigger_import_project class=class title=title>
+        <button on:mousedown=trigger_import_project class=move || class.get() title=title>
             {children()}
         </button>
     }

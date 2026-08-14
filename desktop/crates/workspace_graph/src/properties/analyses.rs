@@ -278,7 +278,7 @@ fn ScriptView(analysis: ui_lib::state::project::Analysis) -> impl IntoView {
                 use lib::command::project::error::AnalysesUpdate;
 
                 if let Err(err) = remove_analysis(project, path).await {
-                    #[cfg(feature = "tracing")] 
+                    #[cfg(feature = "tracing")]
                     tracing::warn!("could not remove analysis association: {err:?}");
                     let msg = match err {
                         AnalysesUpdate::AnalysesFile(err) => {
@@ -625,7 +625,7 @@ mod error {
         });
 
         Effect::watch(
-            confirmation_action,
+            move || confirmation_action.get(),
             move |confirmation_action, _, _| {
                 let Some(action) = confirmation_action else {
                     return;

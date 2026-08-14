@@ -11,6 +11,7 @@ leptos.workspace = true
 leptos_icons.workspace = true
 leptos_router = { workspace = true, features = ["nightly"] }
 leptos-use.workspace = true
+reactive_graph.workspace = true
 reactive_stores.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

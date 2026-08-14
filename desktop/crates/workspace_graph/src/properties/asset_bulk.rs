@@ -520,7 +520,7 @@ mod name {
         };
 
         let _ = Effect::watch(
-            processed_value,
+            move || processed_value.get(),
             move |processed_value, _, _| {
                 oninput.run(processed_value.clone());
             },
@@ -649,7 +649,7 @@ mod description {
                 value=state.read_untracked().description()
                 oninput
                 debounce=*input_debounce
-                class="input-compact w-full align-top"
+                attr:class="input-compact w-full align-top"
             />
         }
     }
@@ -783,7 +783,7 @@ mod tags {
 
         view! {
             <DetailPopout title="Add tags" onclose>
-                <AddTagsEditor onadd class="w-full px-1" />
+                <AddTagsEditor onadd attr:class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -791,7 +791,7 @@ mod tags {
 
 mod metadata {
     use super::{ActiveResources, State, container_assets, update_properties};
-    use leptos::{prelude::*, task::spawn_local};
+    use leptos::{prelude::Get, prelude::*, task::spawn_local};
     use syre_core::types::data;
     use syre_desktop_editors::{
         common::{bulk::metadata::Editor as MetadataEditor, metadata::AddDatum as AddDatumEditor},
@@ -865,12 +865,12 @@ mod metadata {
         });
 
         let _ = Effect::watch(
-            modifications,
+            move || modifications.get(),
             {
                 let project = project.rid().read_only();
                 let graph = graph.clone();
                 let assets = assets.clone();
-                move |modifications, _, _| {
+                move |modifications: &Vec<(String, data::Value)>, _, _| {
                     let mut update = PropertiesUpdate::default();
                     update.metadata = MetadataAction {
                         add: vec![],
@@ -997,7 +997,7 @@ mod metadata {
 
         view! {
             <DetailPopout title="Add metadata" onclose>
-                <AddDatumEditor keys=Signal::derive(keys) onadd class="w-full px-1" />
+                <AddDatumEditor keys=Signal::derive(keys) onadd attr:class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -1045,7 +1045,8 @@ fn container_assets(
         let container = graph.path(&node).unwrap();
         if let Some(container_assets) = asset_ids
             .iter_mut()
-            .find(|(container_id, _)| *container_id == container).map(|(_, container_assets)| container_assets)
+            .find(|(container_id, _)| *container_id == container)
+            .map(|(_, container_assets)| container_assets)
         {
             container_assets.push(asset.clone());
         } else {

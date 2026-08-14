@@ -44,7 +44,6 @@ pub mod description {
         #[prop(into)] value: Signal<Option<String>>,
         #[prop(into)] oninput: Callback<Option<String>>,
         #[prop(into)] debounce: Signal<f64>,
-        #[prop(optional, into)] class: MaybeProp<String>,
     ) -> impl IntoView {
         let (processed_value, set_processed_value) = signal(value.get_untracked());
 
@@ -74,7 +73,6 @@ pub mod description {
                 value=Signal::derive(input_value)
                 oninput=oninput_text
                 debounce
-                attr:class=class
             />
         }
     }
@@ -486,11 +484,11 @@ pub mod metadata {
 
         view! {
             <InputNumber
-                value=Signal::derive(input_value)
-                oninput=Callback::new(set_input_value)
+                value=input_value
+                oninput=Callback::new(move |val| set_input_value(val))
                 onblur
                 set_is_valid
-                attr:class=Signal::derive(class)
+                attr:class=class
                 attr:placeholder="Value"
             />
         }
@@ -625,8 +623,8 @@ pub mod metadata {
             <div class="flex flex-wrap w-full">
                 <InputNumber
                     node_ref=node_ref_magnitude
-                    value=Signal::derive(input_value_magnitude)
-                    oninput=Callback::new(set_input_value_magnitude)
+                    value=input_value_magnitude
+                    oninput=Callback::new(move |val|set_input_value_magnitude(val))
                     onblur=onblur_magnitude
                     attr:placeholder="Magnitude"
                     attr:class="input-compact"
@@ -1203,6 +1201,8 @@ pub mod bulk {
                     value=Signal::derive(input_value)
                     oninput=oninput_text
                     debounce
+                    {..}
+                    placeholder=placeholder
                 />
             }
         }

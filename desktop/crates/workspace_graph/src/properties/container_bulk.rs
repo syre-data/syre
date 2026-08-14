@@ -596,7 +596,7 @@ mod name {
             leptos_use::signal_debounced(input_value, *input_debounce);
 
         let _ = Effect::watch(
-            input_value,
+            move || input_value.get(),
             move |input_value, _, _| {
                 set_input_error(false);
                 spawn_local({
@@ -675,7 +675,7 @@ mod name {
         view! {
             <input
                 type="text"
-                prop:value=Signal::derive(input_value)
+                prop:value=Signal::derive(move || input_value.get())
                 on:input=move |e| {
                     set_input_value(event_target_value(&e));
                 }
@@ -897,7 +897,7 @@ mod description {
                 value=state.with_untracked(|state| state.description())
                 oninput
                 debounce=*input_debounce
-                class="input-compact w-full align-top"
+                attr:class="input-compact w-full align-top"
             />
         }
     }
@@ -1046,7 +1046,7 @@ mod tags {
 
         view! {
             <DetailPopout title="Add tags" onclose=Callback::new(close)>
-                <AddTagsEditor onadd reset=reset_form class="w-full px-1" />
+                <AddTagsEditor onadd reset=reset_form attr:class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -1132,12 +1132,12 @@ mod metadata {
         });
 
         let _ = Effect::watch(
-            modifications,
+            move || modifications.get(),
             {
                 let project = project.rid();
                 let graph = graph.clone();
                 let containers = containers.clone();
-                move |modifications, _, _| {
+                move |modifications: &Vec<(String, data::Value)>, _, _| {
                     let containers_len = containers.with_untracked(|containers| containers.len());
                     let mut update = PropertiesUpdate::default();
                     update.metadata = MetadataAction {
@@ -1280,7 +1280,7 @@ mod metadata {
 
         view! {
             <DetailPopout title="Add metadata" onclose=Callback::new(close)>
-                <AddDatumEditor keys=Signal::derive(keys) onadd=onadd class="w-full px-1" />
+                <AddDatumEditor keys=Signal::derive(keys) onadd=onadd attr:class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -1756,7 +1756,7 @@ mod analysis_associations {
                 <AddAssociationEditor
                     available_analyses
                     onadd=Callback::new(onadd)
-                    class="w-full px-1"
+                    attr:class="w-full px-1"
                 />
             </DetailPopout>
         }

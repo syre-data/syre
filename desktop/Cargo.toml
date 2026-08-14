@@ -22,7 +22,7 @@ has_id.workspace = true
 js-sys.workspace = true
 leptos.workspace = true
 leptos_icons.workspace = true
-leptos_meta = { version = "0.8" }
+leptos_meta = { version = "0.9.0-beta" }
 leptos_router = { workspace = true, features = ["nightly"] }
 leptos-use = { workspace = true, features = ["storage"] }
 reactive_stores.workspace = true

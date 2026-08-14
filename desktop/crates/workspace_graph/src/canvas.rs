@@ -749,7 +749,10 @@ fn GraphView(root: ui_lib::state::graph::Node) -> impl IntoView {
     let x_node = Signal::derive(move || width.with(|width| (width - CONTAINER_WIDTH) / 2));
 
     let _ = Effect::watch(
-        container_visibility.read_only(),
+        {
+            let vis = container_visibility.read_only();
+            move || vis.get()
+        },
         {
             let subtree_width = display_state.find(&root).unwrap().width();
             move |visible, visible_prev, _| {
@@ -1854,26 +1857,26 @@ fn AnalysisAssociation(association: ui_lib::state::AnalysisAssociation) -> impl 
                     {move || title().unwrap_or("(no title)".to_string())}
                 </div>
                 {
-                    template! {
+                    view! {
                         <div class="inline-flex gap-1">
-                        <span>"(" {association.priority()} ")"</span>
-                        <span
-                            on:mousedown=autorun_toggle
-                            class="inline-flex items-center"
-                        >
-                            <svg width="1em" height="1em">
-                                <use
-                                    href=move || {
-                                        if association.autorun().get() {
-                                            "#workspace_graph-canvas-star_fill"
-                                        } else {
-                                            "#workspace_graph-canvas-star"
+                            <span>"(" {association.priority()} ")"</span>
+                            <span
+                                on:mousedown=autorun_toggle
+                                class="inline-flex items-center"
+                            >
+                                <svg width="1em" height="1em">
+                                    <use
+                                        href=move || {
+                                            if association.autorun().get() {
+                                                "#workspace_graph-canvas-star_fill"
+                                            } else {
+                                                "#workspace_graph-canvas-star"
+                                            }
                                         }
-                                    }
-                                />
-                            </svg>
-                        </span>
-                    </div>
+                                    />
+                                </svg>
+                            </span>
+                        </div>
                     }
                 }
             </div>

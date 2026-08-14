@@ -1,12 +1,15 @@
 @echo off
 setlocal enabledelayedexpansion
-set PROGRAM_BASENAME="syre-project-daemon"
+set PROGRAM_BASENAME="syre-project-daemon-server"
+set BIN_NAME=%PROGRAM_BASENAME%-server
 set ROOT=..\..
 set release_dir=%ROOT%\target\release
 set crate_release_dir=%ROOT%\target\release
+set bin=%ROOT%\desktop\src-tauri\bin
 set lang=%ROOT%\lang
 
 :: get target
+:: TODO: Use `rustc --print target-tuple`
 for /f "tokens=* usebackq" %%o in (`rustc -Vv`) do (
   set v=%%o 
   if /i "!v:~0,5!"=="host:" set host=%%o
@@ -16,12 +19,12 @@ for /f "tokens=1,2 delims= " %%a in ("%host%") do (
   set target=%%b
 )
 set target_out=%release_dir%\%PROGRAM_BASENAME%-%target%.exe
-set crate_target_out=%crate_release_dir%\%PROGRAM_BASENAME%-%target%.exe
+set crate_target_out=%bin%\%BIN_NAME%-%target%.exe
 
 :: build
-if not exist "%release_dir%" md "%release_dir%"
+if not exist "%bin%" md "%bin%"
 cargo build --release -F server
-move %crate_release_dir%\%PROGRAM_BASENAME%.exe %crate_target_out%
+copy %crate_release_dir%\%PROGRAM_BASENAME%.exe %crate_target_out%
 
 :: copy to other directories
 set python_path=%lang%\python\src\syre\bin\

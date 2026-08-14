@@ -9,6 +9,7 @@ use std::{
 
 const POLL_INTERVAL: std::time::Duration = Duration::from_millis(2_000);
 
+#[derive(Debug)]
 pub enum Command {
     Watch(PathBuf),
     Unwatch(PathBuf),
@@ -50,6 +51,8 @@ impl Watcher {
 
             match cmd {
                 Ok(cmd) => {
+                    #[cfg(feature = "tracing")]
+                    tracing::trace!(?cmd, "command received");
                     match cmd {
                         Command::Watch(path) => self.watch(path),
                         Command::Unwatch(path) => self.unwatch(path),
@@ -60,6 +63,8 @@ impl Watcher {
                     }
                 }
                 Err(RecvError::Timeout) => {
+                    #[cfg(feature = "tracing")]
+                    tracing::trace!("timeout");
                     self.poll();
                 }
 

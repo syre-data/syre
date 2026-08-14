@@ -282,7 +282,10 @@ pub mod data {
             let data = RwSignal::new(data);
 
             let _ = Effect::watch(
-                graph.nodes().read_only(),
+                {
+                    let nodes = graph.nodes().read_only();
+                    move || nodes.get()
+                },
                 move |nodes, _, _| {
                     if nodes.len() == node_states.read_untracked().len() {
                         return;
@@ -521,6 +524,8 @@ pub mod display {
     use leptos::{html, prelude::*};
     use syre_core::types::ResourceId;
 
+    use crate::state::data::Datum;
+
     #[derive(Clone)]
     pub struct State {
         data_source: ReadSignal<Vec<super::data::Datum>>,
@@ -551,10 +556,10 @@ pub mod display {
                 });
 
             Effect::watch(
-                data_source,
+                move || data_source.get(),
                 {
                     let sort = sort.read_only();
-                    move |data_source, _, _| {
+                    move |data_source: &Vec<Datum>, _, _| {
                         let mut removed = data_sorted
                             .read_untracked()
                             .iter()
@@ -600,7 +605,10 @@ pub mod display {
             );
 
             Effect::watch(
-                source.metadata_keys(),
+                {
+                    let keys = source.metadata_keys();
+                    move || keys.get()
+                },
                 {
                     let columns = columns.metadata;
                     move |keys, _, _| {
@@ -634,7 +642,10 @@ pub mod display {
             );
 
             Effect::watch(
-                sort.read_only(),
+                {
+                    let sort_r = sort.read_only();
+                    move || sort_r.get()
+                },
                 {
                     let data_sorted = data_sorted.write_only();
                     let data = data.write_only();

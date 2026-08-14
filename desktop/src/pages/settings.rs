@@ -201,7 +201,7 @@ pub mod user {
             let _ = {
                 let user = user.rid().clone();
                 Effect::watch(
-                    input_debounce,
+                    move || input_debounce.get(),
                     move |input_debounce, _, _| {
                         let update =
                             user_settings.with_untracked(|settings| match &settings.desktop {
@@ -950,7 +950,7 @@ pub mod app {
         );
 
         Effect::watch(
-            settings,
+            move || settings.get(),
             move |settings, _, _| {
                 update_settings_action.dispatch(settings.clone());
             },

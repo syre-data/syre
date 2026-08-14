@@ -2,7 +2,7 @@ use leptos::{either::EitherOf7, html, prelude::*};
 use reactive_stores::Store;
 use std::fmt;
 use syre_desktop_lib as lib;
-use syre_desktop_ui_lib as ui_lib;
+use syre_desktop_ui_lib::{self as ui_lib, state::settings::user::Settings as UserStoreFields};
 
 pub(super) mod analyses;
 mod asset;

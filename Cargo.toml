@@ -73,9 +73,10 @@ zmq = "0.10.0"
 icondata = { version = "0.7", default-features = false }
 js-sys = "0.3"
 leptos = { version = "0.9.0-beta", features = ["nightly", "csr"] }
-leptos_router = "0.8"
+leptos_router = "0.9.0-beta1"
 leptos-use = { git = "https://github.com/Synphonyte/leptos-use.git", branch = "leptos-0.9" }
-reactive_stores = "0.4"
+reactive_graph = "0.3.0-beta2"
+reactive_stores = "0.5.0-beta"
 # leptos_icons = { git = "https://github.com/carloskiki/leptos-icons" }
 leptos_icons = { git = "https://github.com/bicarlsen/leptos-icons", branch = "leptos-0.9" }
 tauri-sys = { git = "https://github.com/JonasKruckenberg/tauri-sys", branch = "v2" }

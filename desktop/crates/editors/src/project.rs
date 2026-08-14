@@ -276,7 +276,7 @@ mod description {
                 value=project.properties().description().read_only()
                 oninput=Callback::new(oninput)
                 debounce=*input_debounce
-                class="input-compact w-full align-top"
+                attr:class="input-compact w-full align-top"
             />
         }
     }

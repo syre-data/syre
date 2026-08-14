@@ -3,12 +3,16 @@ use leptos::{
     ev::{MouseEvent, SubmitEvent},
     prelude::*,
 };
+use reactive_graph::traits::With as ReactiveWith;
 use reactive_stores::Store;
 use std::path::PathBuf;
 use syre_core::types::ResourceId;
 use syre_desktop_lib as lib;
 use syre_desktop_resource_db as db;
-use syre_desktop_ui_lib::{self as ui_lib, state};
+use syre_desktop_ui_lib::{
+    self as ui_lib,
+    state::{self, settings::user::Settings as UserStoreFields},
+};
 
 /// Stores search history.
 ///
@@ -83,7 +87,7 @@ pub fn Search() -> impl IntoView {
             let query = query.clone();
             async move {
                 let results = search(query, project.get_untracked()).await;
-                #[cfg(feature = "tracing")] 
+                #[cfg(feature = "tracing")]
                 tracing::trace!(?results);
                 set_results(results);
             }
@@ -101,7 +105,7 @@ pub fn Search() -> impl IntoView {
     );
 
     let _ = Effect::watch(
-        query,
+        move || query.get(),
         move |query, prev_query, _| {
             if let Some(prev_query) = prev_query {
                 if query.trim() == prev_query.trim() {
@@ -264,10 +268,9 @@ fn Container(rid: ResourceId) -> impl IntoView {
         .properties()
         .with_untracked(|properties| {
             let properties = properties.as_ref().unwrap();
-            properties.rid().with_untracked(|rid|
-            workspace_graph_state
-                .selection_resources()
-                .get(rid))
+            properties
+                .rid()
+                .with_untracked(|rid| workspace_graph_state.selection_resources().get(rid))
         })
         .unwrap();
 
@@ -288,9 +291,15 @@ fn Container(rid: ResourceId) -> impl IntoView {
                 })
             });
             match action {
-                types::SelectionAction::Unselect => rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap()),
-                types::SelectionAction::Select => rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap()),
-                types::SelectionAction::SelectOnly => rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap()),
+                types::SelectionAction::Unselect => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
+                }
+                types::SelectionAction::Select => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
+                }
+                types::SelectionAction::SelectOnly => {
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
+                }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
         }
@@ -367,9 +376,15 @@ fn Asset(rid: ResourceId) -> impl IntoView {
                 })
             });
             match action {
-                types::SelectionAction::Unselect => rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap()),
-                types::SelectionAction::Select => rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap()),
-                types::SelectionAction::SelectOnly => rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap()),
+                types::SelectionAction::Unselect => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, false).unwrap())
+                }
+                types::SelectionAction::Select => {
+                    rid.with_untracked(|rid| selection_resources.set(rid, true).unwrap())
+                }
+                types::SelectionAction::SelectOnly => {
+                    rid.with_untracked(|rid| selection_resources.select_only(rid).unwrap())
+                }
                 types::SelectionAction::Clear => selection_resources.clear(),
             }
         }
@@ -393,7 +408,6 @@ fn Asset(rid: ResourceId) -> impl IntoView {
         let container = container.clone();
         move || {
             let path = graph.path(&container).unwrap();
-
             asset
                 .path()
                 .with(|asset_path| path.join(asset_path))

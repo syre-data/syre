@@ -239,7 +239,7 @@ fn WorkspaceGraph(graph: db::state::Graph) -> impl IntoView {
     provide_context(data_view);
 
     Effect::watch(
-        data_view,
+        move || data_view.get(),
         move |view, _, _| {
             if !db_loaded.get_untracked() {
                 if matches!(view, ui_lib::types::DataView::Database) {

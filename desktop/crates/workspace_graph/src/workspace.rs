@@ -52,7 +52,10 @@ pub fn Workspace() -> impl IntoView {
     );
 
     let _ = Effect::watch(
-        drag_over_container_elm.read_only(),
+        {
+            let elm = drag_over_container_elm.read_only();
+            move || elm.get()
+        },
         move |elm, prev_container, _| {
             if let Some(elm) = prev_container {
                 if let Some(container) = elm.as_ref() {

@@ -1,5 +1,5 @@
-use super::FsWatcher;
-use crate::WatcherCommand;
+use super::{FsWatcher, path_watcher};
+use crate::command::WatcherCommand;
 use notify_debouncer_full::DebouncedEvent;
 
 impl FsWatcher {
@@ -13,7 +13,10 @@ impl FsWatcher {
     ///
     /// # Notes
     /// See https://docs.rs/notify/latest/notify/#editor-behaviour.
-    fn handle_remove_events(&self, mut events: Vec<DebouncedEvent>) -> Vec<DebouncedEvent> {
+    pub(crate) fn handle_remove_events(
+        &self,
+        mut events: Vec<DebouncedEvent>,
+    ) -> Vec<DebouncedEvent> {
         let mut remove_events = vec![];
         for (index, event) in events.iter().enumerate() {
             match &event.kind {
@@ -81,15 +84,37 @@ impl FsWatcher {
                             *events[index] = event;
                         }
                         Err(err) => {
-                            panic!("UNUSUAL SITUATION: watching manifest modified with {event:?} resulted in {err:?}");
+                            panic!(
+                                "UNUSUAL SITUATION: watching manifest modified with {event:?} resulted in {err:?}"
+                            );
                         }
                     }
                 } else {
+                    #[cfg(feature = "tracing")]
+                    tracing::trace!(
+                        "config path removed, switching to path watcher for `{path:?}`"
+                    );
+                    let (tx, rx) = crossbeam::channel::bounded(1);
+                    self.command_tx
+                        .send(WatcherCommand::Unwatch {
+                            path: path.clone(),
+                            tx,
+                        })
+                        .unwrap();
+
+                    match rx.recv().unwrap() {
+                        Ok(()) => {}
+                        Err(err) => {
+                            panic!("could not unwatch path `{path:?}`");
+                        }
+                    }
+
                     self.path_watcher_command_tx
                         .send(path_watcher::Command::Watch(path.clone()))
                         .unwrap();
                 }
             } else {
+                #[cfg(feature = "tracing")]
                 tracing::debug!("UNUSUAL REMOVE EVENT: {event:?}");
             }
         }

@@ -529,7 +529,7 @@ mod description {
                 value=state.read_untracked().description()
                 oninput
                 debounce=*input_debounce
-                class="input-compact w-full align-top"
+                attr:class="input-compact w-full align-top"
             />
         }
     }
@@ -617,7 +617,7 @@ mod tags {
 
         view! {
             <DetailPopout title="Add tags" onclose=Callback::new(close)>
-                <AddTagsEditor onadd class="w-full px-1" />
+                <AddTagsEditor onadd attr:class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -674,13 +674,13 @@ mod metadata {
         });
 
         let _ = Effect::watch(
-            modifications,
+            move || modifications.get(),
             {
                 let project = project.clone();
                 let graph = graph.clone();
                 let resources = resources.clone();
                 let messages = messages.clone();
-                move |modifications, _, _| {
+                move |modifications: &Vec<(String, data::Value)>, _, _| {
                     let mut update = PropertiesUpdate::default();
                     update.metadata = MetadataAction {
                         add: vec![],
@@ -759,7 +759,7 @@ mod metadata {
 
         view! {
             <DetailPopout title="Add metadata" onclose>
-                <AddDatumEditor keys=Signal::derive(keys) onadd class="w-full px-1" />
+                <AddDatumEditor keys=Signal::derive(keys) onadd attr:class="w-full px-1" />
             </DetailPopout>
         }
     }
@@ -801,12 +801,10 @@ async fn update_properties(
 
             if !container_errors.is_empty() || !asset_errors.is_empty() {
                 let msg = ui_lib::message::Builder::error("Could not save properties.");
-                let msg = msg.body(
-                    UpdatePropertiesErrors {
-                        container_errors,
-                        asset_errors,
-                    }
-                );
+                let msg = msg.body(UpdatePropertiesErrors {
+                    container_errors,
+                    asset_errors,
+                });
                 messages.push_message(msg.build());
             }
         }
@@ -922,7 +920,7 @@ struct UpdatePropertiesErrors {
 }
 
 impl ui_lib::message::AsAnyView for UpdatePropertiesErrors {
-    fn as_any_view(&self) -> AnyView{
+    fn as_any_view(&self) -> AnyView {
         view! {
             <div>
                 {if !self.container_errors.is_empty() {

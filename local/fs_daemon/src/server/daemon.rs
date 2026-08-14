@@ -15,7 +15,7 @@ mod notify_processor;
 #[path = "windows.rs"]
 mod windows;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 #[path = "linux.rs"]
 mod linux;
 
@@ -350,7 +350,9 @@ impl FsWatcher {
                     })
                     .unwrap();
 
-                if rx.recv().unwrap().is_err() {
+                if let Err(err) = rx.recv().unwrap() {
+                    #[cfg(feature = "tracing")]
+                    tracing::error!(path=?path, err=?err, "could not watch path");
                     return None;
                 }
 
@@ -433,7 +435,7 @@ impl FsWatcher {
         #[cfg(feature = "tracing")]
         tracing::debug!(?events);
 
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         let events = self.handle_remove_events(events);
 
         #[allow(unused_mut)]

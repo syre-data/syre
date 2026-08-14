@@ -2050,7 +2050,10 @@ pub(self) mod editor {
 
         if let Some(value) = value.as_ref() {
             Effect::watch(
-                value.value(),
+                {
+                    let val = value.value();
+                    move || val.get()
+                },
                 move |value, _, _| {
                     set_input_value(value.clone());
                 },

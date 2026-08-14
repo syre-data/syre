@@ -256,7 +256,7 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            #[cfg(feature = "tracing")] 
+                            #[cfg(feature = "tracing")]
                             tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
@@ -307,7 +307,7 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            #[cfg(feature = "tracing")] 
+                            #[cfg(feature = "tracing")]
                             tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
@@ -322,7 +322,7 @@ mod properties {
                     value=asset.kind().read_only()
                     oninput
                     debounce=*input_debounce
-                    class="input-compact"
+                    attr:class="input-compact"
                 />
             }
         }
@@ -358,7 +358,7 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            #[cfg(feature = "tracing")] 
+                            #[cfg(feature = "tracing")]
                             tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
@@ -373,7 +373,7 @@ mod properties {
                     value=asset.description().read_only()
                     oninput
                     debounce=*input_debounce
-                    class="input-compact w-full align-top"
+                    attr:class="input-compact w-full align-top"
                 />
             }
         }
@@ -409,7 +409,7 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            #[cfg(feature = "tracing")] 
+                            #[cfg(feature = "tracing")]
                             tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));
@@ -424,7 +424,7 @@ mod properties {
                     value=asset.tags().read_only()
                     oninput
                     debounce=*input_debounce
-                    class="input-compact"
+                    attr:class="input-compact"
                 />
             }
         }
@@ -520,7 +520,7 @@ mod properties {
 
             view! {
                 <DetailPopout title="Add metadata" onclose=close_popout>
-                    <AddDatumEditor keys=Signal::derive(keys) onadd class="w-full px-1" />
+                    <AddDatumEditor keys=Signal::derive(keys) onadd attr:class="w-full px-1" />
                 </DetailPopout>
             }
         }
@@ -535,12 +535,12 @@ mod properties {
             let input_debounce = expect_context::<InputDebounce>();
 
             let (input_value, set_input_value) = signal(value.get_untracked());
-            let oninput = Callback::new(set_input_value);
+            let oninput = Callback::new(move |val| set_input_value.set(val));
 
             // TODO: Handle errors with messages.
             // See https://github.com/leptos-rs/leptos/issues/2041
             let _ = Effect::watch(
-                input_value,
+                move || input_value.get(),
                 {
                     let project = project.clone();
                     let graph = graph.clone();
@@ -586,7 +586,7 @@ mod properties {
                                 )
                                 .await
                                 {
-                                    #[cfg(feature = "tracing")] 
+                                    #[cfg(feature = "tracing")]
                                     tracing::warn!("could not update asset properties: {err:?}");
                                     let msg =
                                         ui_lib::message::Builder::error("Could not save asset");
@@ -626,7 +626,7 @@ mod properties {
                         if let Err(err) =
                             update_properties(project, container_path, asset_path, properties).await
                         {
-                            #[cfg(feature = "tracing")] 
+                            #[cfg(feature = "tracing")]
                             tracing::warn!("could not update asset properties: {err:?}");
                             let msg = ui_lib::message::Builder::error("Could not save asset.");
                             let msg = msg.body(format!("{err:?}"));

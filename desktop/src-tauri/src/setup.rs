@@ -164,6 +164,42 @@ fn setup_project_daemon(app: &mut tauri::App) {
         .name("syre desktop project daemon event listener".to_string())
         .spawn(move || actor.run())
         .unwrap();
+
+    // REMOVE
+    use tauri::Emitter;
+    std::thread::spawn({
+        let app = app.handle().clone();
+        move || {
+            let mut i = 0;
+            loop {
+                let path: std::path::PathBuf = format!("/test/{i}").into();
+                app.emit(
+                    lib::event::topic::PROJECT_MANIFEST,
+                    vec![lib::Event::new(
+                        lib::event::EventKind::ProjectManifest(lib::event::ProjectManifest::Added(
+                            vec![(
+                                path.clone(),
+                                project_daemon::state::ProjectData {
+                                    properties: project_daemon::state::DataResource::Ok(
+                                        syre_core::project::Project::new(format!("project {i}")),
+                                    ),
+                                    settings: project_daemon::state::DataResource::Ok(
+                                        syre_local::project::config::Settings::new(),
+                                    ),
+                                    analyses: project_daemon::state::DataResource::Ok(vec![]),
+                                },
+                            )],
+                        )),
+                        uuid::Uuid::new_v4(),
+                    )],
+                )
+                .unwrap();
+                tracing::debug!("SENT {i}");
+                i += 1;
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
+    });
 }
 
 fn setup_resource_db(app: &mut tauri::App) {

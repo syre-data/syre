@@ -11,7 +11,13 @@ use syre_desktop::{
 fn main() {
     #[cfg(feature = "tracing")]
     let _log_guard = logging::enable();
-    let builder = tauri::Builder::default()
+
+    #[cfg(all(debug_assertions, feature = "devtools"))]
+    let builder = tauri::Builder::default().plugin(tauri_plugin_devtools::init());
+    #[cfg(not(all(debug_assertions, feature = "devtools")))]
+    let builder = tauri::Builder::default();
+
+    let builder = builder
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -131,6 +137,7 @@ mod logging {
         #[cfg(debug_assertions)]
         let subscriber = subscriber.with(timing_layer);
 
+        #[cfg(not(feature = "devtools"))]
         tracing::subscriber::set_global_default(subscriber).unwrap();
         _log_guard
     }

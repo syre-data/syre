@@ -673,14 +673,12 @@ pub mod project {
 
         /// Remove a project and all its resources.
         pub async fn remove_project_by_path(&self, project: PathBuf) -> surrealdb::Result<()> {
-            let mut project_id = self
-                .db
-                .query("SELECT id FROM project WHERE path=type::string($path)")
-                .bind(("path", project))
-                .await?;
+            let mut project_id = self.project_record_id_from_path(project).await?;
 
-            let Some(project_id) = project_id.take::<Option<IdRecord>>(0)? else {
-                todo!();
+            let Some(project_id) = project_id else {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("project not found");
+                return Ok(());
             };
 
             self.db
@@ -695,10 +693,10 @@ pub mod project {
                         flag \
                     WHERE _project=type::thing($project)",
                 )
-                .bind(("project", project_id.id.clone()))
+                .bind(("project", project_id.clone()))
                 .await?;
 
-            self.db.delete::<Option<IdRecord>>(project_id.id).await?;
+            self.db.delete::<Option<IdRecord>>(project_id).await?;
 
             Ok(())
         }

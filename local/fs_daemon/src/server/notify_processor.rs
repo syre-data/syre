@@ -58,6 +58,10 @@ impl FsWatcher {
                 | NotifyEventKind::Modify(ModifyKind::Name(_))
                 | NotifyEventKind::Modify(ModifyKind::Any) => true,
 
+                #[cfg(target_os = "macos")]
+                NotifyEventKind::Modify(ModifyKind::Metadata(
+                    notify::event::MetadataKind::WriteTime,
+                )) => true,
                 _ => false,
             })
             .filter(|event| {
@@ -143,8 +147,8 @@ impl FsWatcher {
             match event.kind {
                 EventKind::Create(_)
                 | EventKind::Remove(_)
-                | EventKind::Modify(notify::event::ModifyKind::Data(_))
-                | EventKind::Modify(notify::event::ModifyKind::Any) => {
+                | EventKind::Modify(ModifyKind::Data(_))
+                | EventKind::Modify(ModifyKind::Any) => {
                     let [path] = &event.paths[..] else {
                         panic!("invalid paths");
                     };
@@ -161,9 +165,13 @@ impl FsWatcher {
                         }
                     })
                 }
-                EventKind::Modify(notify::event::ModifyKind::Name(_)) => {
+                EventKind::Modify(ModifyKind::Name(_)) => {
                     // NB: Not clear how to handle.
                     // Let pass through.
+                    true
+                }
+                #[cfg(target_os = "macos")]
+                EventKind::Modify(ModifyKind::Metadata(notify::event::MetadataKind::WriteTime)) => {
                     true
                 }
                 _ => unreachable!("event kind previously filtered"),
@@ -947,6 +955,36 @@ impl FsWatcher {
                     Some(fs_event::Event::new(fs_event::Folder::Other(path), time))
                 } else {
                     return Err(error::Process::UnknownFileType);
+                }
+            }
+
+            #[cfg(target_os = "macos")]
+            NotifyEventKind::Modify(ModifyKind::Metadata(
+                notify::event::MetadataKind::WriteTime,
+            )) => {
+                let [path] = &event.paths[..] else {
+                    panic!("invalid paths");
+                };
+
+                let path = match fs::canonicalize(path) {
+                    Ok(path) => path,
+                    Err(err) => match err.kind() {
+                        io::ErrorKind::NotFound => {
+                            return Err(error::Process::NotFound);
+                        }
+                        _ => {
+                            return Err(error::Process::Canonicalize);
+                        }
+                    },
+                };
+
+                if path.is_file() {
+                    Some(fs_event::Event::new(
+                        fs_event::File::DataModified(path),
+                        time,
+                    ))
+                } else {
+                    None
                 }
             }
 

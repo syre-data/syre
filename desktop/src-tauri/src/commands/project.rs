@@ -58,7 +58,6 @@ pub fn create_project(
         }
     })?;
 
-    // create analysis folder
     let analysis_root = "analysis";
     let mut analysis = path.to_path_buf();
     analysis.push(analysis_root);

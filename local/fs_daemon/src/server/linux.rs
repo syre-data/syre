@@ -67,7 +67,6 @@ impl FsWatcher {
             {
                 if path.exists() {
                     let (tx, rx) = crossbeam::channel::bounded(1);
-                    tracing::debug!("rewatching {path:?}");
                     self.command_tx
                         .send(WatcherCommand::Watch {
                             path: path.clone(),

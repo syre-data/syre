@@ -166,7 +166,7 @@ impl Builder {
                     *config_state = config.to_data();
                 }
                 Err(err) => {
-                    project_manifest_state = Err(err);
+                    local_config_state = Err(err);
                 }
             }
         }

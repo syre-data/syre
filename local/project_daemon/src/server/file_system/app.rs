@@ -3,7 +3,7 @@ use crate::{
     event::{self as update, Update},
     server::state,
 };
-use std::{io};
+use std::io;
 use syre_fs_daemon::{EventKind, event};
 use syre_local::TryReducible;
 
@@ -126,23 +126,29 @@ impl Daemon {
             ))
         );
 
-        if self.state.projects().len() == 0 {
-            self.state
-                .try_reduce(
-                    ConfigAction::ProjectManifest(DataAction::SetErr(
-                        io::ErrorKind::NotFound.into(),
-                    ))
+        self.state
+            .try_reduce(
+                ConfigAction::ProjectManifest(DataAction::SetErr(io::ErrorKind::NotFound.into()))
                     .into(),
-                )
-                .unwrap();
+            )
+            .unwrap();
 
-            vec![Update::app(
-                update::ProjectManifest::Corrupted,
-                event.id().clone(),
-            )]
-        } else {
-            todo!();
+        let project_paths = self
+            .state
+            .projects()
+            .iter()
+            .map(|project| project.path().clone())
+            .collect::<Vec<_>>();
+        for path in project_paths.iter().cloned() {
+            self.state
+                .try_reduce(state::Action::RemoveProject(path))
+                .unwrap()
         }
+
+        vec![Update::app(
+            update::ProjectManifest::Corrupted,
+            event.id().clone(),
+        )]
     }
 
     fn handle_fs_event_app_project_manifest_modified_data(

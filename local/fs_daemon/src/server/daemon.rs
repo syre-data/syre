@@ -113,17 +113,32 @@ impl Builder {
                 .unwrap();
 
             if let Err(err) = rx.recv()? {
+                #[cfg(feature = "tracing")]
+                tracing::trace!("watch error: {err:?}");
                 let err = match &err.kind {
                     notify::ErrorKind::Io(io_err)
                         if io_err.kind() == std::io::ErrorKind::NotFound =>
                     {
-                        #[cfg(feature = "tracing")]
-                        tracing::trace!("{path:?} not found");
                         path_watcher_command_tx
                             .send(path_watcher::Command::Watch(path.clone()))
                             .unwrap();
 
-                        err.add_path(path.clone())
+                        if !err.paths.contains(path) {
+                            err.add_path(path.clone())
+                        } else {
+                            err
+                        }
+                    }
+                    notify::ErrorKind::PathNotFound => {
+                        path_watcher_command_tx
+                            .send(path_watcher::Command::Watch(path.clone()))
+                            .unwrap();
+
+                        if !err.paths.contains(path) {
+                            err.add_path(path.clone())
+                        } else {
+                            err
+                        }
                     }
                     #[cfg(target_os = "windows")]
                     notify::ErrorKind::Generic(msg)
@@ -423,7 +438,7 @@ impl FsWatcher {
     }
 
     fn handle_event_errors(&self, errors: Vec<notify::Error>) {
-        let errors = errors.into_iter().map(|err| Error::Watch(err)).collect();
+        let errors = errors.into_iter().map(Error::Watch).collect();
         self.event_tx.send(Err(errors)).unwrap();
     }
 

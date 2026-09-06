@@ -64,7 +64,7 @@ impl Daemon {
         };
 
         match kind {
-            event::Any::Removed => todo!(),
+            event::Any::Removed => self.handle_fs_event_any_remove(event),
         }
     }
 }
@@ -81,4 +81,57 @@ fn path_app_dir_count(path: impl AsRef<Path>) -> usize {
             _ => false,
         })
         .count()
+}
+
+mod any {
+    use super::Daemon;
+    use crate::{Update, event as update, server, state};
+    use syre_fs_daemon::{EventKind, event};
+    use syre_local::TryReducible;
+
+    impl Daemon {
+        pub(super) fn handle_fs_event_any_remove(
+            &mut self,
+            event: syre_fs_daemon::Event,
+        ) -> Vec<Update> {
+            let EventKind::Any(event::Any::Removed) = event.kind() else {
+                panic!("invalid event kind");
+            };
+
+            let [path] = &event.paths()[..] else {
+                panic!("invalid paths");
+            };
+
+            if let Some(project) = self
+                .state
+                .projects()
+                .iter()
+                .find(|project| project.path() == path)
+            {
+                let state::FolderResource::Present(project_state) = project.fs_resource() else {
+                    panic!("invalid state")
+                };
+                let project_id = project_state
+                    .properties()
+                    .map(|properties| properties.rid().clone())
+                    .ok();
+                self.state
+                    .try_reduce(server::state::Action::Project {
+                        path: project.path().clone(),
+                        action: server::state::project::Action::RemoveFolder,
+                    })
+                    .unwrap();
+                return vec![Update::project(
+                    project_id,
+                    path.clone(),
+                    update::Project::FolderRemoved,
+                    event.id().clone(),
+                )];
+            }
+
+            #[cfg(feature = "tracing")]
+            tracing::warn!("unhandled case");
+            vec![]
+        }
+    }
 }

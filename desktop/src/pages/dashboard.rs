@@ -117,6 +117,8 @@ fn DashboardView(
                 .unwrap();
 
         while let Some(events) = listener.next().await {
+            #[cfg(feature = "tracing")]
+            tracing::debug!(?events);
             for event in events.payload {
                 handle_project_manifest_event(event, set_projects);
             }
@@ -143,14 +145,14 @@ fn DashboardNoProjects() -> impl IntoView {
                 <div class="flex gap-y-2 flex-col items-center">
                     <CreateProject
                         class="btn btn-primary w-1/2"
-                        title="Create a new Syre project from scratch."
+                        title="Create a new project."
                     >
                         <strong>"New"</strong>
                     </CreateProject>
 
                     <InitializeProject
                         class="btn btn-secondary w-1/2"
-                        title="Initialize an existing folder as a Syre project."
+                        title="Initialize an existing folder"
                     >
                         <strong>"Initialize"</strong>
                         " an existing directory"
@@ -158,7 +160,7 @@ fn DashboardNoProjects() -> impl IntoView {
 
                     <ImportProject
                         class="btn btn-secondary w-1/2"
-                        title="If you already have a Syre project, import it into your workspace."
+                        title="Import an existing project"
                     >
                         <strong>"Import"</strong>
                         " an existing project"

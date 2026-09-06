@@ -153,7 +153,7 @@ pub fn Register() -> impl IntoView {
                     </label>
                 </div>
                 <div class="pt-4 text-center">
-                    <button disabled=register_user_action.pending() class="btn btn-primary">
+                    <button disabled=register_user_action.pending() class="btn btn-primary custor-pointer">
                         "Sign up"
                     </button>
                 </div>

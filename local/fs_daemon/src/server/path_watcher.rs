@@ -42,17 +42,17 @@ impl Watcher {
     pub fn run(&mut self) {
         loop {
             let cmd: Result<Command, RecvError> = if self.paths.len() == 0 {
-                self.command_rx.recv().map_err(|err| err.into())
+                self.command_rx.recv().map_err(Into::into)
             } else {
                 self.command_rx
                     .recv_timeout(self.poll_interval)
-                    .map_err(|err| err.into())
+                    .map_err(Into::into)
             };
 
             match cmd {
                 Ok(cmd) => {
                     #[cfg(feature = "tracing")]
-                    tracing::trace!(?cmd, "command received");
+                    tracing::trace!(?cmd);
                     match cmd {
                         Command::Watch(path) => self.watch(path),
                         Command::Unwatch(path) => self.unwatch(path),

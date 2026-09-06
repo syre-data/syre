@@ -139,7 +139,7 @@ mod macos {
     use crate::command::WatcherCommand as Command;
     use crossbeam::channel::{Receiver, Sender};
     use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdCache, FileIdMap};
-    use std::path::Path;
+    use std::{fs, io, path::Path};
 
     type FileSystemWatcher = notify::PollWatcher;
 
@@ -197,6 +197,27 @@ mod macos {
         #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
         fn watch(&mut self, path: impl AsRef<Path>, tx: Sender<notify::Result<()>>) {
             let path = path.as_ref();
+            // `PollWatcher` silently fails if path does not exist (or other failure).
+            // Must manually check path exists.
+            // See [https://github.com/notify-rs/notify/issues/998].
+            if let Err(err) = fs::metadata(path) {
+                let err_kind = match err.kind() {
+                    io::ErrorKind::NotFound => notify::ErrorKind::PathNotFound,
+                    io_err => notify::ErrorKind::Io(err),
+                };
+                let nerr = notify::Error::new(err_kind).add_path(path.to_path_buf());
+
+                #[cfg(feature = "tracing")]
+                tracing::warn!("could not watch path `{path:?}`: {nerr:?}");
+
+                if let Err(send_err) = tx.send(Err(nerr)) {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!("could not send watcher error: {send_err:?}");
+                }
+
+                return;
+            }
+
             if let Err(err) = self.watcher.watch(path, notify::RecursiveMode::Recursive) {
                 #[cfg(feature = "tracing")]
                 tracing::warn!("could not watch path `{path:?}`: {err:?}");

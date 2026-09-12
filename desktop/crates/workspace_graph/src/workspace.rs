@@ -92,18 +92,18 @@ pub fn Workspace() -> impl IntoView {
                     <Drawer
                         dock=drawer::Dock::East
                         absolute=true
-                        class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-r \
+                        class="min-w-28 max-w-[40%] z-10 bg-white dark:bg-secondary-800 w-1/6 border-r \
                         not-dark:border-r-secondary-900"
                     >
                         <NavBar />
                     </Drawer>
-                    <div class="grow">
+                    <div class="grow z-0">
                         <Canvas />
                     </div>
                     <Drawer
                         dock=drawer::Dock::West
                         absolute=true
-                        class="min-w-28 max-w-[40%] bg-white dark:bg-secondary-800 w-1/6 border-l \
+                        class="min-w-28 max-w-[40%] z-10 bg-white dark:bg-secondary-800 w-1/6 border-l \
                         not-dark:border-l-secondary-900"
                     >
                         <PropertiesBar />

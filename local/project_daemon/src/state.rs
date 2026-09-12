@@ -40,9 +40,9 @@ impl Project {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ProjectData {
-    pub properties: DataResource<CoreProject>,
-    pub settings: DataResource<Settings>,
-    pub analyses: DataResource<Vec<Analysis>>,
+    pub(crate) properties: DataResource<CoreProject>,
+    pub(crate) settings: DataResource<Settings>,
+    pub(crate) analyses: DataResource<Vec<Analysis>>,
 }
 
 impl ProjectData {

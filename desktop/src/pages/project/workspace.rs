@@ -35,7 +35,6 @@ pub fn Workspace() -> impl IntoView {
     let id =
         move || params.with(|params| ResourceId::from_str(&params.get("id").unwrap()).unwrap());
     let active_user = LocalResource::new(commands::user::fetch_user);
-    let resources = LocalResource::new(move || fetch_project_resources(id()));
 
     view! {
         <Suspense fallback=Loading>
@@ -46,33 +45,7 @@ pub fn Workspace() -> impl IntoView {
                     let user = active_user.await;
                     user.map(|user| match user {
                         None => Either::Left(view! { <NoUser /> }),
-                        Some(user) => {
-                            Either::Right(
-                                view! {
-                                    <Suspense fallback=Loading>
-                                        {
-                                            let user = user.clone();
-                                            move || Suspend::new({
-                                                let user = user.clone();
-                                                async move {
-                                                    resources
-                                                        .await
-                                                        .map(|(project_path, project_data, graph)| {
-                                                            Either::Left(
-                                                                view! {
-                                                                    <WorkspaceView user project_path project_data graph />
-                                                                },
-                                                            )
-                                                        })
-                                                        .unwrap_or(Either::Right(view! { <NoProject /> }))
-                                                }
-                                            })
-                                        }
-
-                                    </Suspense>
-                                },
-                            )
-                        }
+                        Some(user) =>  Either::Right( view! {<WorkspaceInner user id/>})
                     })
                 })}
             </ErrorBoundary>
@@ -81,8 +54,13 @@ pub fn Workspace() -> impl IntoView {
 }
 
 #[component]
-fn Loading() -> impl IntoView {
-    view! { <div class="pt-4 text-center">"Loading..."</div> }
+fn UserError(errors: ArcRwSignal<Errors>) -> impl IntoView {
+    view! {
+        <div class="text-center">
+            <div class="text-large p4">"Error with user."</div>
+            <div>{format!("{errors:?}")}</div>
+        </div>
+    }
 }
 
 #[component]
@@ -102,11 +80,51 @@ fn NoUser() -> impl IntoView {
     }
 }
 
+#[cfg_attr(feature = "tracing", tracing::instrument(level = "trace", skip_all))]
 #[component]
-fn UserError(errors: ArcRwSignal<Errors>) -> impl IntoView {
+pub fn WorkspaceInner(
+    user: core::system::User,
+    #[prop(into)] id: Signal<ResourceId>,
+) -> impl IntoView {
+    let resources = LocalResource::new(move || fetch_project_resources(id()));
+    let user = user.clone();
+    view! {
+    <Suspense fallback=Loading>
+            <ErrorBoundary fallback=|errors| {
+                view! { <ProjectResourceError errors /> }
+            }>
+        {
+            move || Suspend::new({
+                let user = user.clone();
+                async move {
+                    resources
+                        .await
+                        .map(|(project_path, project_data, graph)| {
+                            Either::Left(
+                                view! {
+                                    <WorkspaceView user project_path project_data graph />
+                                },
+                            )
+                        })
+                        .unwrap_or(Either::Right(view! { <NoProject /> }))
+                }
+            })
+        }
+            </ErrorBoundary>
+    </Suspense>
+            }
+}
+
+#[component]
+fn Loading() -> impl IntoView {
+    view! { <div class="pt-4 text-center">"Loading..."</div> }
+}
+
+#[component]
+fn ProjectResourceError(errors: ArcRwSignal<Errors>) -> impl IntoView {
     view! {
         <div class="text-center">
-            <div class="text-large p4">"Error with user."</div>
+            <div class="text-large p4">"Error retrieving project resources."</div>
             <div>{format!("{errors:?}")}</div>
         </div>
     }

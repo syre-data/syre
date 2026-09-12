@@ -434,7 +434,7 @@ fn CanvasView(
                     (e.client_x() - x, e.client_y() - y)
                 });
 
-                if dx > 0 || dy > 0 {
+                if dx != 0 || dy != 0 {
                     set_was_dragged(true);
                 }
 
@@ -449,16 +449,18 @@ fn CanvasView(
                         - viewbox.height().get() as isize / 2,
                     0,
                 );
-                viewbox.x().set(ui_lib::utils::clamp(
+                let viewbox_x = ui_lib::utils::clamp(
                     x,
                     -TryInto::<isize>::try_into(viewbox.width().get() / 2).unwrap(),
                     x_max.try_into().unwrap(),
-                ));
-                viewbox.y().set(ui_lib::utils::clamp(
+                );
+                let viewbox_y = ui_lib::utils::clamp(
                     y,
                     -TryInto::<isize>::try_into(viewbox.height().get() / 2).unwrap(),
                     y_max.try_into().unwrap(),
-                ));
+                );
+                viewbox.x().set(viewbox_x);
+                viewbox.y().set(viewbox_y);
                 set_pan_drag(Some((e.client_x(), e.client_y())));
             }
         }

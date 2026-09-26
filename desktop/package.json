@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/plugin-dialog": "^2.2.0",
-    "@tauri-apps/plugin-store": "^2.2.0",
-    "@tauri-apps/plugin-updater": "^2.7.0"
+    "@tauri-apps/plugin-dialog": "^2.7.0",
+    "@tauri-apps/plugin-store": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.12.0"
   }
 }

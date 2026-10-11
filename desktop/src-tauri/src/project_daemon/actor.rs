@@ -296,8 +296,18 @@ impl Actor {
                     vec![]
                 }
             }
-            db::event::UserManifest::Error => todo!(),
+            db::event::UserManifest::Error => {
+                *user = None;
+                vec![(
+                    lib::event::topic::USER.to_string(),
+                    lib::Event::new(lib::EventKind::User(None), event.id().clone()),
+                )]
+            }
             db::event::UserManifest::Removed(manifest) => {
+                if manifest.iter().any(|user| user == active_user.rid()) {
+                    return vec![];
+                }
+
                 *user = None;
                 vec![(
                     lib::event::topic::USER.to_string(),

@@ -90,6 +90,9 @@ pub mod topic {
     /// Active user.
     pub const USER: &str = "syre:user";
 
+    /// User manifest.
+    pub const USER_MANIFEST: &str = "syre:user_manifest";
+
     /// Project manifest.
     pub const PROJECT_MANIFEST: &str = "syre:project_manifest";
 

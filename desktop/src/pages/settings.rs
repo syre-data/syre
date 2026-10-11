@@ -4,7 +4,7 @@ use reactive_stores::Store;
 use syre_desktop_lib as lib;
 use syre_desktop_ui_lib as ui_lib;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum ActiveView {
     User,
     App,
@@ -185,14 +185,17 @@ pub mod user {
             let messages = expect_context::<ui_lib::message::Messages>();
             let prefers_dark_theme = expect_context::<ui_lib::types::PrefersDarkTheme>();
             let user_settings = expect_context::<Store<ui_lib::state::settings::User>>();
-            let (input_debounce, set_input_debounce) = signal(
-                user_settings
-                    .read_untracked()
-                    .desktop
-                    .clone()
-                    .unwrap_or_default()
-                    .input_debounce_ms,
-            );
+            let (input_debounce, set_input_debounce) = {
+                let user_settings = user_settings.read_untracked();
+                let desktop_settings = &user_settings.desktop;
+                let debounce = if let Ok(settings) = &desktop_settings {
+                    settings.input_debounce_ms
+                } else {
+                    let settings = ui_lib::state::settings::user::Desktop::default();
+                    settings.input_debounce_ms
+                };
+                signal(debounce)
+            };
             let input_debounce = leptos_use::signal_debounced(
                 input_debounce,
                 Signal::derive(move || input_debounce.with(|ms| *ms as f64)),
@@ -258,7 +261,7 @@ pub mod user {
             };
 
             view! {
-                <form on:submit=move |e| e.prevent_default()>
+                <form on:submit=|e| e.prevent_default()>
                     <div class="pb-2">
                         <label>
                             {move || {

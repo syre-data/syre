@@ -19,10 +19,7 @@ pub fn Register() -> impl IntoView {
             let navigate = navigate.clone();
             async move {
                 match register(email, name).await {
-                    Ok(_user) => {
-                        navigate("/", Default::default());
-                    }
-
+                    Ok(_user) => {}
                     Err(msg) => {
                         set_error(Some(msg));
                     }
@@ -58,7 +55,7 @@ pub fn Register() -> impl IntoView {
     view! {
         <div class="h-screen w-screen flex flex-col justify-center items-center gap-y-4">
             <div class="flex flex-col items-center w-20">
-                <Logo attr:class="w-full" />
+                <Logo attr:class="w-full"/>
                 <h1 class="font-primary text-4xl">"Syre"</h1>
             </div>
             <div class="flex justify-center w-1/2">
@@ -80,7 +77,7 @@ pub fn Register() -> impl IntoView {
                     <div class="pt-4">
                         <label>
                             <span class="block">"Name"</span>
-                            <input name="name" class="input-simple" />
+                            <input name="name" class="input-simple"/>
                         </label>
                     </div>
                     <div class="text-sm">{error}</div>

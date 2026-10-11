@@ -1,7 +1,7 @@
 use super::{Home, Landing};
 use crate::commands;
 use futures::StreamExt;
-use leptos::{prelude::*, task::spawn_local};
+use leptos::{either::either, prelude::*, task::spawn_local_scoped_with_cancellation};
 use syre_core as core;
 use syre_desktop_lib as lib;
 
@@ -35,7 +35,7 @@ fn ActiveUserErrors(errors: ArcRwSignal<Errors>) -> impl IntoView {
 #[component]
 fn IndexView(user: Option<core::system::User>) -> impl IntoView {
     let (user, set_user) = signal(user);
-    spawn_local(async move {
+    spawn_local_scoped_with_cancellation(async move {
         let mut listener = tauri_sys::event::listen::<Vec<lib::Event>>(lib::event::topic::USER)
             .await
             .unwrap();
@@ -53,10 +53,12 @@ fn IndexView(user: Option<core::system::User>) -> impl IntoView {
         }
     });
 
-    view! {
-        <Show when=move || { user.with(|user| user.is_some()) } fallback=|| view! { <Landing /> }>
-            <Home user=user().unwrap() />
-        </Show>
+    move || {
+        either! {
+            user() ,
+            None => view! {<Landing/>},
+            Some(user) => view! {<Home user=user.clone()/>},
+        }
     }
 }
 

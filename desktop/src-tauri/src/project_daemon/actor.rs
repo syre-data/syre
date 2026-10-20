@@ -238,9 +238,13 @@ impl Actor {
             (None, Some(user)) => {
                 let projects = state::load_user_state(&self.db, &user);
                 let _ = state_user.insert(state::User::new(user.clone(), projects));
-
                 let user = self.db.user().get(user.clone()).unwrap();
-                assert!(user.is_some());
+
+                #[cfg(feature = "tracing")]
+                if user.is_none() {
+                    tracing::debug!("user in local config does not exist");
+                }
+
                 vec![(
                     lib::event::topic::USER.to_string(),
                     lib::Event::new(lib::EventKind::User(user), event),

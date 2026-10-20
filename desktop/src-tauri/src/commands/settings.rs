@@ -32,8 +32,14 @@ pub fn user_settings_desktop_update(
         panic!("invalid state");
     };
     assert_eq!(user, *state_user.rid());
-
-    let mut settings = settings::user::Desktop::load(&user)?;
+    let settings = settings::user::Desktop::load(&user);
+    let mut settings = match settings {
+        Ok(settings) => settings,
+        Err(local::error::IoSerde::Io(io::ErrorKind::NotFound)) => {
+            settings::user::Desktop::default()
+        }
+        Err(err) => return Err(err),
+    };
     settings.input_debounce_ms = update.input_debounce_ms;
     settings.save(&user).map_err(|err| err.kind().into())
 }

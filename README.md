@@ -27,3 +27,5 @@ or right clicking and selecting it.
 
 5. Delete the file `/users/thot/Library/Application Support/ai.syre.syre-local/local_config.json` then restore it a few times.
 This show create the error.
+
+The app can be a bit buggy, so if the error is not reproduced try restarting it.

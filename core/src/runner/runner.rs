@@ -586,7 +586,13 @@ impl Analyzer {
                                 return None;
                             }
 
-                            let stderr = str::from_utf8(output.stderr.as_slice()).unwrap();
+                            let stderr = match str::from_utf8(output.stderr.as_slice()) {
+                                Ok(err) => err,
+                                Err(err) => {
+                                    eprintln!("{:?}", output.stderr);
+                                    "Could not decode error output"
+                                }
+                            };
                             let exec_ctx = AnalysisExecutionContext {
                                 project: project.clone(),
                                 analysis: analysis.id().clone(),

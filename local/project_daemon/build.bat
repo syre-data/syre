@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-set PROGRAM_BASENAME="syre-project-daemon-server"
+set PROGRAM_BASENAME="syre-project-daemon"
 set BIN_NAME=%PROGRAM_BASENAME%-server
 set ROOT=..\..
 set release_dir=%ROOT%\target\release

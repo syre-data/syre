@@ -1,23 +1,26 @@
 from typing import Union
-
+import os
 from syre import _LEGACY_
 from .types import OptStr, Tags, Metadata, Properties
 from .common import dev_mode
 
-OptDatabase = Union['Database', None]
-OptContainer = Union['Container', None]
+OptDatabase = Union["Database", None]
+OptContainer = Union["Container", None]
 if _LEGACY_:
     from typing import List
-    Assets = List['Asset']
-    ContainerList = List['Container']
+
+    Assets = List["Asset"]
+    ContainerList = List["Container"]
 else:
-    Assets = list['Asset']
-    ContainerList = list['Container']
-    
+    Assets = list["Asset"]
+    ContainerList = list["Container"]
+
+
 class Container:
     """
     A Container.
     """
+
     def __init__(
         self,
         rid: str,
@@ -27,7 +30,7 @@ class Container:
         tags: Tags = [],
         metadata: Metadata = {},
         assets: Assets = [],
-        db: OptDatabase = None
+        db: OptDatabase = None,
     ):
         """
         Create a new Container.
@@ -39,11 +42,12 @@ class Container:
         self._tags: Tags = tags
         self._metadata: Metadata = metadata
         self._assets: Assets = assets
-        
+        self._path = None
+
         self._db: OptDatabase = db
         self._parent: OptContainer = None
         self._parent_set: bool = False
-    
+
     @property
     def name(self) -> OptStr:
         """
@@ -51,7 +55,7 @@ class Container:
             OptStr: Container's name.
         """
         return self._name
-    
+
     @property
     def type(self) -> OptStr:
         """
@@ -59,7 +63,7 @@ class Container:
             OptStr: Container's type.
         """
         return self._type
-    
+
     @property
     def description(self) -> OptStr:
         """
@@ -67,7 +71,7 @@ class Container:
             OptStr: Container's description.
         """
         return self._description
-    
+
     @property
     def tags(self) -> Tags:
         """
@@ -75,7 +79,7 @@ class Container:
             Tags: Container's tags.
         """
         return self._tags
-    
+
     @property
     def metadata(self) -> Metadata:
         """
@@ -83,7 +87,7 @@ class Container:
             Metadata: Container's metadata.
         """
         return self._metadata
-        
+
     @property
     def assets(self) -> Assets:
         """
@@ -92,11 +96,15 @@ class Container:
         """
         if self._db is None or not dev_mode():
             return self._assets
-        
-        self._db._socket.send_json({"Container": {"GetByIdForAnalysis": {
-            "project": self._db._project,
-            "container": self._rid
-        }}})
+
+        self._db._socket.send_json({
+            "Container": {
+                "GetByIdForAnalysis": {
+                    "project": self._db._project,
+                    "container": self._rid,
+                }
+            }
+        })
         container = self._db._socket.recv_json()
         if container is None:
             raise RuntimeError("Could not get Container")
@@ -104,27 +112,64 @@ class Container:
         if "Err" in container:
             raise RuntimeError(f"Error getting container: {container['Err']}")
         container = container["Ok"]
-        
-        container = dict_to_container(container, db = self._db)
+
+        container = dict_to_container(container, db=self._db)
         self._assets = container._assets
         return self._assets
-    
+
+    @property
+    def path(self) -> str:
+        """
+        Returns:
+            str: Absolute path to the container.
+        """
+        if self._path is not None:
+            return self._path
+
+        if self._db is None:
+            raise RuntimeError("can not get container path, no connection to database")
+        # if not dev_mode():
+        #     raise NotImplementedError("feature in pre-alpha")
+
+        self._db._socket.send_json({
+            "Container": {
+                "SystemPathById": {
+                    "project": self._db._project,
+                    "container": self._rid,
+                }
+            }
+        })
+        container_path = self._db._socket.recv_json()
+        if container_path is None:
+            raise RuntimeError("Could not get container path.")
+        assert (
+            os.path.commonpath([container_path, self._db._data_root])
+            == self._db._data_root
+        )
+
+        self._path = container_path
+        return self._path
+
     def children(self) -> ContainerList:
         """
         Returns:
             ContainerList: Container's children.
         """
-        self._db._socket.send_json({"Graph": {"Children": {
-            "project": self._db._project, 
-            "parent": self._rid,
-        }}})
+        self._db._socket.send_json({
+            "Graph": {
+                "Children": {
+                    "project": self._db._project,
+                    "parent": self._rid,
+                }
+            }
+        })
         children = self._db._socket.recv_json()
         if "Err" in children:
             raise RuntimeError(f"Could not retrieve children: {children['Err']}")
-        
-        children = [dict_to_container(child, db = self._db) for child in children["Ok"]]
+
+        children = [dict_to_container(child, db=self._db) for child in children["Ok"]]
         return children
-    
+
     def parent(self) -> OptContainer:
         """
         Returns:
@@ -132,20 +177,24 @@ class Container:
             Container is the root of the current graph.
         """
         if self._db is None:
-            raise RuntimeError('No database connector')
-        
+            raise RuntimeError("No database connector")
+
         if self._parent_set and not dev_mode():
             return self._parent
-        
+
         if self._rid == self._db._root_id:
             self._set_parent(None)
             return None
-            
-        self._db._socket.send_json({"Graph": {"Parent": {
-            "project": self._db._project, 
-            "root": self._db._root, 
-            "container": self._rid,
-        }}}) 
+
+        self._db._socket.send_json({
+            "Graph": {
+                "Parent": {
+                    "project": self._db._project,
+                    "root": self._db._root,
+                    "container": self._rid,
+                }
+            }
+        })
         parent = self._db._socket.recv_json()
         if "Err" in parent:
             raise RuntimeError(f"Could not retrieve parent: {parent['Err']}")
@@ -154,11 +203,11 @@ class Container:
         if parent is None:
             self._set_parent(None)
             return None
-        
-        parent = dict_to_container(parent, db = self._db)
+
+        parent = dict_to_container(parent, db=self._db)
         self._set_parent(parent)
         return parent
-    
+
     def _set_parent(self, parent: OptContainer):
         """Set the Container's parent
 
@@ -169,10 +218,12 @@ class Container:
         self._parent = parent
         self._parent_set = True
 
+
 class Asset:
     """
     An Asset.
     """
+
     def __init__(
         self,
         rid: str,
@@ -197,7 +248,7 @@ class Asset:
         self._metadata: Metadata = metadata
         self._db = db
         self._parent = parent
-    
+
     @property
     def name(self) -> OptStr:
         """
@@ -205,7 +256,7 @@ class Asset:
             OptStr: Asset's name.
         """
         return self._name
-            
+
     @property
     def type(self) -> OptStr:
         """
@@ -213,7 +264,7 @@ class Asset:
             OptStr: Asset's type.
         """
         return self._type
-    
+
     @property
     def description(self) -> OptStr:
         """
@@ -221,7 +272,7 @@ class Asset:
             OptStr: Asset's description.
         """
         return self._description
-    
+
     @property
     def tags(self) -> Tags:
         """
@@ -229,7 +280,7 @@ class Asset:
             Tags: Asset's tags.
         """
         return self._tags
-    
+
     @property
     def metadata(self) -> Metadata:
         """
@@ -237,7 +288,7 @@ class Asset:
             Metadata: Asset's metadata.
         """
         return self._metadata
-        
+
     @property
     def file(self) -> str:
         """
@@ -245,26 +296,31 @@ class Asset:
             str: Asset's file path.
         """
         return self._file
-    
-    def parent(self) -> 'Container':
+
+    def parent(self) -> "Container":
         """
         Returns:
             Asset's Container.
         """
         if self._parent is not None:
             return self._parent
-            
+
         if self._db is None:
             raise RuntimeError("No database connector")
-        
-        self._db._socket.send_json({"Asset": {"Parent": {
-            "project": self._db._project,
-            "asset": self._rid,
-        }}})
+
+        self._db._socket.send_json({
+            "Asset": {
+                "Parent": {
+                    "project": self._db._project,
+                    "asset": self._rid,
+                }
+            }
+        })
         parent = self._db._socket.recv_json()
         if "Err" in parent:
             raise RuntimeError(f"Could not retrieve parent: {parent['Err']}")
-        return dict_to_container(parent["Ok"], db = self._db)            
+        return dict_to_container(parent["Ok"], db=self._db)
+
 
 def dict_to_container(d: Properties, db: OptDatabase = None) -> Container:
     """
@@ -278,22 +334,24 @@ def dict_to_container(d: Properties, db: OptDatabase = None) -> Container:
     """
     container = Container(
         d["rid"],
-        name = d["properties"]["name"],
-        type = d["properties"]["kind"],
-        description = d["properties"]["description"],
-        tags = d["properties"]["tags"],
-        metadata = d["properties"]["metadata"],
-        db = db
+        name=d["properties"]["name"],
+        type=d["properties"]["kind"],
+        description=d["properties"]["description"],
+        tags=d["properties"]["tags"],
+        metadata=d["properties"]["metadata"],
+        db=db,
     )
-    
-    container._assets = list(map(
-        lambda asset: dict_to_asset(asset, db = db, parent = container),
-        d["assets"]
-    ))
-    
+
+    container._assets = list(
+        map(lambda asset: dict_to_asset(asset, db=db, parent=container), d["assets"])
+    )
+
     return container
 
-def dict_to_asset(d: Properties, db: OptDatabase = None, parent: OptContainer = None) -> Asset:
+
+def dict_to_asset(
+    d: Properties, db: OptDatabase = None, parent: OptContainer = None
+) -> Asset:
     """
     Converts a dictionary to an Asset.
 
@@ -306,11 +364,11 @@ def dict_to_asset(d: Properties, db: OptDatabase = None, parent: OptContainer = 
     return Asset(
         d["rid"],
         d["path"],
-        name = d["properties"]["name"],
-        type = d["properties"]["kind"],
-        description = d["properties"]["description"],
-        tags = d["properties"]["tags"],
-        metadata = d["properties"]["metadata"],
-        db = db,
-        parent = parent
+        name=d["properties"]["name"],
+        type=d["properties"]["kind"],
+        description=d["properties"]["description"],
+        tags=d["properties"]["tags"],
+        metadata=d["properties"]["metadata"],
+        db=db,
+        parent=parent,
     )

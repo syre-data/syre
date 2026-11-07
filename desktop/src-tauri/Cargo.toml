@@ -31,6 +31,7 @@ syre-desktop-lib = { path = "../crates/lib", features = ["server"] }
 syre-desktop-resource-db = { path = "../crates/resource_db" }
 tauri = { version = "3.0.0-alpha", features = [] }
 tauri-runtime-wry  = { version = "3.0.0-alpha", features= [] }
+tauri-runtime-cef  = { version = "3.0.0-alpha", features= [] }
 tauri-plugin-dialog = "3.0.0-alpha"
 tauri-plugin-shell = "3.0.0-alpha"
 tauri-plugin-store = "3.0.0-alpha"

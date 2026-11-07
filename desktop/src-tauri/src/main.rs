@@ -8,6 +8,7 @@ use syre_desktop::{
     setup, state,
 };
 
+#[tauri_runtime_cef::cef_entry_point]
 fn main() {
     #[cfg(feature = "tracing")]
     let _log_guard = logging::enable();
@@ -20,7 +21,8 @@ fn main() {
     let builder = tauri::Builder::default();
 
     let builder = builder
-        .runtime(tauri_runtime_wry::Wry::default())
+        // .runtime(tauri_runtime_wry::Wry::default())
+        .runtime(tauri_runtime_cef::Cef::default())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())

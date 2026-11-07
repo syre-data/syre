@@ -20,7 +20,6 @@ pub async fn search_project(
     Ok(result)
 }
 
-
 // TODO: Should not return `Result`, but currently gives error otherwise.
 // See [https://github.com/tauri-apps/tauri/issues/2533].
 #[tauri::command]

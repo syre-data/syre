@@ -7,6 +7,7 @@ use syre_project_daemon as project_daemon;
 use tauri::{Listener, Manager};
 use tauri_plugin_store::StoreExt;
 use tauri_plugin_updater::UpdaterExt;
+use tauri_runtime_wry::AppHandleWryExt;
 
 const PROJECT_DAEMON_CONNECTION_ATTEMPTS: usize = 50;
 const PROJECT_DAEMON_CONNECTION_DELAY_MS: u64 = 100;
